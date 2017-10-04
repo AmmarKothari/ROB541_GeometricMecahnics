@@ -108,7 +108,7 @@ class triangle(object):
 	def vertices_relative_pose(self, vertices, pose):
 		new_vertices = []
 		for v in vertices:
-			v_pose = [v[0], v[1], 0]	
+			v_pose = [v[0], v[1], 1]	
 			new_vertices.append(self.transform(v_pose, pose)[:2])
 		return new_vertices
 
