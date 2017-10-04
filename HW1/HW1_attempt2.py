@@ -39,6 +39,25 @@ import matplotlib
 from moviepy.video.io.bindings import mplfig_to_npimage
 import moviepy.editor as mpy
 
+class canvas(object):
+	#just does the plotting
+	def __init__(self,f,ax):
+		self.f, self.ax = f,ax
+		self.patches = []
+
+	def getPatches(self, obj):
+		self.patches.extend(obj.patches)
+		obj.patches = []
+	
+	def draw(self):
+		self.ax.clear()
+		p = PatchCollection(self.patches, alpha=0.4, match_original=True)
+		self.ax.add_collection(p)
+		plt.xlim(-5, 5)
+		plt.ylim(-5, 5)
+		self.patches = []
+
+
 class triangle(object):
 	# this is the object that will be rotated
 	def __init__(self,f,ax):
@@ -54,6 +73,10 @@ class triangle(object):
 		self.circle_color = [0.5, 0.5, 0.5]
 		self.large_color  = [1,0,1]
 		self.small_color = [0,1,1]
+
+	def base_triangle(self, pose):
+		self.large_vertices_base = self.transform_points(self.large_vertices_base, pose)
+		self.small_vertices_base = self.transform_points(self.small_vertices_base, pose)
 
 	def rotation_matrix(self, theta):
 		c, s = np.cos(theta), np.sin(theta)
@@ -100,7 +123,6 @@ class triangle(object):
 		plt.xlim(-5, 5)
 		plt.ylim(-5, 5)
 		self.patches = []
-		# pdb.set_trace()
 
 class motion_path(object):
 	def __init__(self,f,ax):
@@ -157,14 +179,22 @@ class makeMovie(object):
 
 if __name__ == '__main__':
 	f,ax = plt.subplots(1,1)
+	C = canvas(f,ax)
 	T = triangle(f,ax)
+	T2 = triangle(f,ax)
+	T2.triangle_pose = [2,2,np.pi/2]
+	T2.base_triangle(T2.triangle_pose)
+	
 	MP = motion_path(f,ax)
 	path = MP.motion_path_pts(100)
 	for pose_new in path:
 		T.large_triangle(pose_new)
+		T2.large_triangle(pose_new)
 		T.small_triangle(pose_new)
 		T.center(pose_new)
-		T.draw()
+		C.getPatches(T)
+		C.getPatches(T2)
+		C.draw()
 		plt.draw()
 		plt.pause(0.001)
 	pdb.set_trace()
@@ -174,7 +204,7 @@ if __name__ == '__main__':
 	plt.show()
 
 
-	
+
 	# MOV = makeMovie()
 	# animation = mpy.VideoClip(MOV.make_frame_mpl, duration = 10)
 	# pdb.set_trace()
