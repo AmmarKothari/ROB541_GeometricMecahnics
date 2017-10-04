@@ -38,6 +38,7 @@ import pdb
 import matplotlib
 from moviepy.video.io.bindings import mplfig_to_npimage
 import moviepy.editor as mpy
+import copy
 
 class canvas(object):
 	#just does the plotting
@@ -101,6 +102,13 @@ class triangle(object):
 		new_pose = [np.dot(trans, p) for p in points_pose]
 		new_points = [p[:2] for p in new_pose]
 		return new_points
+
+	def transform_pose(self, pose1, pose2):
+		pts1 = self.pts_to_pose([pose1[:2]])
+		new_pts1 = self.transform_points(pts1, pose2)
+		pose1_new = new_pts1[0:2] + [pose1[2] + pose2[2]]
+		pdb.set_trace()
+		return pose1_new
 
 	def large_triangle(self, center_pose):
 		self.large_vertices = self.transform_points(self.large_vertices_base, center_pose)
@@ -168,7 +176,7 @@ class makeMovie(object):
 		self.path = self.MP = motion_path(f,ax)
 		self.path = self.MP.motion_path_pts(100)
 
-	def make_frame_mpl(self,t):
+	def single_triangle(self,t):
 		cur_pose = self.path[int(t*10)]
 		self.T.large_triangle(cur_pose)
 		self.T.small_triangle(cur_pose)
@@ -176,22 +184,35 @@ class makeMovie(object):
 		self.T.draw()
 		return mplfig_to_npimage(self.T.f)
 
+# class line(object):
+# 	#plots line between two centers
+# 	def __init__(self):
+		
+
+
 
 if __name__ == '__main__':
 	f,ax = plt.subplots(1,1)
+	base_pose = [0,0,np.pi]
+	base_pt = [0,0,1]
 	C = canvas(f,ax)
 	T = triangle(f,ax)
 	T2 = triangle(f,ax)
-	T2.triangle_pose = [2,2,np.pi/2]
-	T2.base_triangle(T2.triangle_pose)
-	
+	h_local = [-2,-2,np.pi/2]
+	# T2.triangle_pose = copy.deepcopy(h_local)
+	# T2.base_triangle(T2.triangle_pose)
 	MP = motion_path(f,ax)
 	path = MP.motion_path_pts(100)
 	for pose_new in path:
+		# T2.triangle_pose = T2.transform_pose(T2.triangle_pose, pose_new)
 		T.large_triangle(pose_new)
-		T2.large_triangle(pose_new)
-		T.small_triangle(pose_new)
-		T.center(pose_new)
+		#find local pose given new pose
+		second_triangle_pose = np.dot(np.dot(T.transformation_matrix(pose_new), T.transformation_matrix(h_local)), base_pt)
+		second_triangle_pose[2] = pose_new[2]; print(second_triangle_pose)
+		T2.center(second_triangle_pose)
+		T2.large_triangle(second_triangle_pose)
+		# T.small_triangle(pose_new)
+		# T.center(pose_new)
 		C.getPatches(T)
 		C.getPatches(T2)
 		C.draw()
