@@ -69,9 +69,10 @@ class triangle(object):
 
 	def large_triangle_pose(self, pose):
 		R = self.rotation_matrix(pose(2))
-		self.large_vertices = np.dot(self.large_vertices_base, R)
+		self.large_vertices = np.dot(R,self.large_vertices_base)
 
 	def large_triangle(self):
+		pdb.set_trace()
 		large_triangle = Polygon(self.large_vertices, True, alpha=0.4, color = self.large_color)
 		self.patches.append(large_triangle)
 
@@ -100,7 +101,6 @@ class triangle(object):
 
 	def move_triangle(self, current_pose, transform):
 		self.triangle_pose = self.transform(current_pose, transform)
-		pdb.set_trace()
 		self.large_vertices = self.vertices_relative_pose(self.large_vertices_base, self.triangle_pose)
 		self.small_vertices = self.vertices_relative_pose(self.small_vertices_base, self.triangle_pose)
 		self.add_patches()
@@ -164,12 +164,15 @@ if __name__ == '__main__':
 	MP = motion_path(f,ax)
 
 	T.add_patches()
-	MP.motion_path()
+	# MP.motion_path()
 	T.draw()
-	MP.draw()
-	motion_points = MP.motion_path_pts(100)
-	for p in motion_points:
-		print('Move To Pose: %s' %p)
-		T.move_triangle(T.triangle_pose, p)
-		MP.draw()
+	# MP.draw()
+	# motion_points = MP.motion_path_pts(100)
+	# for p in motion_points:
+	# 	print('Move To Pose: %s' %p)
+	# 	T.move_triangle(T.triangle_pose, p)
+	# 	MP.draw()
+
+
+	T.move_triangle(T.triangle_pose, [1, 2, np.pi])	
 	plt.show()
