@@ -39,6 +39,8 @@ import matplotlib
 from moviepy.video.io.bindings import mplfig_to_npimage
 import moviepy.editor as mpy
 import copy
+import seaborn as sns
+sns.set()
 
 class canvas(object):
 	#just does the plotting
@@ -46,9 +48,9 @@ class canvas(object):
 		self.f, self.ax = f,ax
 		self.patches = []
 
-	def getPatches(self, obj):
+	def getPatches(self, obj, clear=True):
 		self.patches.extend(obj.patches)
-		obj.patches = []
+		if clear: obj.patches = []
 	
 	def draw(self):
 		self.ax.clear()
@@ -56,20 +58,23 @@ class canvas(object):
 		self.ax.add_collection(p)
 		plt.xlim(-5, 5)
 		plt.ylim(-5, 5)
+		plt.xlabel('X'); plt.ylabel('Y')
 		self.patches = []
 
 
 class triangle(object):
 	# this is the object that will be rotated
-	def __init__(self,f,ax):
-		self.f, self.ax = f,ax
+	def __init__(self):
 		self.patches = []
 		self.triangle_pose = [0,0,0]
 		self.large_vertices = np.array([[-1,-1], [-1, 1], [1, 0]])
 		self.small_vertices = np.array([[0,1],[0,-1],[1,0]])
 
 		self.large_vertices_base = np.array([[-1,-1], [-1, 1], [1, 0]])
-		self.small_vertices_base = np.array([[0,1],[0,-1],[1,0]])
+		### to scale, subtract point to scale around, scale, add point to scale around
+		scale_factor = 0.5
+		scale_point = self.large_vertices_base[-1]
+		self.small_vertices_base = (self.large_vertices_base - scale_point) * [scale_factor, scale_factor] + scale_point
 
 		self.circle_color = [0.5, 0.5, 0.5]
 		self.large_color  = [1,0,1]
@@ -112,17 +117,24 @@ class triangle(object):
 
 	def large_triangle(self, center_pose):
 		self.large_vertices = self.transform_points(self.large_vertices_base, center_pose)
-		large_triangle = Polygon(self.large_vertices, True, alpha=0.4)
+		large_triangle = Polygon(self.large_vertices, True, alpha=0.4, color = self.large_color, edgecolor = 'k', linestyle = 'solid', linewidth = 2)
 		self.patches.append(large_triangle)
 
 	def small_triangle(self, center_pose):
 		self.small_vertices = self.transform_points(self.small_vertices_base, center_pose)
-		small_triangle = Polygon(self.small_vertices, True, alpha=0.4, color = self.small_color)
+		small_triangle = Polygon(self.small_vertices, True, alpha=0.4, color = self.small_color, edgecolor = 'auto', linestyle = 'solid', linewidth = 2)
 		self.patches.append(small_triangle)
 
 	def center(self, center_pose):
 		center = Circle((center_pose[:2]),radius=0.1, color = self.circle_color, edgecolor = 'auto', alpha=0.4)
 		self.patches.append(center)
+		return center
+
+	def triangle(self, center_pose):
+		self.large_triangle(center_pose)
+		self.small_triangle(center_pose)
+		c = self.center(center_pose)
+		return c
 
 	def draw(self):
 		self.ax.clear()
@@ -133,8 +145,7 @@ class triangle(object):
 		self.patches = []
 
 class motion_path(object):
-	def __init__(self,f,ax):
-		self.f, self.ax = f,ax
+	def __init__(self):
 		self.patches = []
 
 	def motion_path(self):
@@ -168,66 +179,84 @@ class motion_path(object):
 		plt.ylim(-5, 5)
 		self.ax.add_collection(p)
 
+class track_path(object):
+	def __init__(self):
+		self.patches = []
+
+	def add_patch(self, patch):
+		self.patches.append(patch)
 
 class makeMovie(object):
 	def __init__(self):
 		f,ax = plt.subplots(1,1)
-		self.T = triangle(f,ax)
-		self.path = self.MP = motion_path(f,ax)
+		self.C = canvas(f,ax)
+		self.T = triangle()
+		self.T2 = triangle()
+		self.path = self.MP = motion_path()
 		self.path = self.MP.motion_path_pts(100)
+		self.TP = track_path()
+		self.TP2 = track_path()
 
 	def single_triangle(self,t):
 		cur_pose = self.path[int(t*10)]
-		self.T.large_triangle(cur_pose)
-		self.T.small_triangle(cur_pose)
-		self.T.center(cur_pose)
-		self.T.draw()
-		return mplfig_to_npimage(self.T.f)
+		self.T.triangle(cur_pose)
+		self.C.getPatches(self.T)
+		self.C.draw()
+		return mplfig_to_npimage(self.C.f)
+
+	def two_triangle_with_path(self,t):
+		h_local = [-2,-1,np.pi/4]
+		base_pt = [0,0,1]
+		cur_pose = self.path[int(t*10)]
+		c_patch = self.T.triangle(cur_pose)
+		self.TP.add_patch(c_patch)
+		#find local pose given new pose
+		second_triangle_pose = np.dot(np.dot(self.T.transformation_matrix(cur_pose), self.T.transformation_matrix(h_local)), base_pt)
+		second_triangle_pose[2] = cur_pose[2] + h_local[2]
+		c_patch = self.T2.triangle(second_triangle_pose)
+		self.TP.add_patch(c_patch)
+		self.C.getPatches(self.T)
+		self.C.getPatches(self.T2)
+		self.C.getPatches(self.TP, clear = False)
+		self.C.draw()
+		return mplfig_to_npimage(self.C.f)
 
 # class line(object):
 # 	#plots line between two centers
 # 	def __init__(self):
-		
+
 
 
 
 if __name__ == '__main__':
-	f,ax = plt.subplots(1,1)
-	base_pose = [0,0,np.pi]
-	base_pt = [0,0,1]
-	C = canvas(f,ax)
-	T = triangle(f,ax)
-	T2 = triangle(f,ax)
-	h_local = [-2,-2,np.pi/2]
-	# T2.triangle_pose = copy.deepcopy(h_local)
-	# T2.base_triangle(T2.triangle_pose)
-	MP = motion_path(f,ax)
-	path = MP.motion_path_pts(100)
-	for pose_new in path:
-		# T2.triangle_pose = T2.transform_pose(T2.triangle_pose, pose_new)
-		T.large_triangle(pose_new)
-		#find local pose given new pose
-		second_triangle_pose = np.dot(np.dot(T.transformation_matrix(pose_new), T.transformation_matrix(h_local)), base_pt)
-		second_triangle_pose[2] = pose_new[2]; print(second_triangle_pose)
-		T2.center(second_triangle_pose)
-		T2.large_triangle(second_triangle_pose)
-		# T.small_triangle(pose_new)
-		# T.center(pose_new)
-		C.getPatches(T)
-		C.getPatches(T2)
-		C.draw()
-		plt.draw()
-		plt.pause(0.001)
-	pdb.set_trace()
-	T.large_triangle()
-	T.draw()
-	
-	plt.show()
-
-
-
-	# MOV = makeMovie()
-	# animation = mpy.VideoClip(MOV.make_frame_mpl, duration = 10)
+	# f,ax = plt.subplots(1,1)
+	# base_pose = [0,0,np.pi]
+	# base_pt = [0,0,1]
+	# C = canvas(f,ax)
+	# T = triangle()
+	# T2 = triangle()
+	# TP = track_path()
+	# MP = motion_path()
+	# h_local = [2,-2,np.pi/4]
+	# path = MP.motion_path_pts(100)
+	# for pose_new in path:
+	# 	T.triangle(pose_new)
+	# 	#find local pose given new pose
+	# 	second_triangle_pose = np.dot(np.dot(T.transformation_matrix(pose_new), T.transformation_matrix(h_local)), base_pt)
+	# 	second_triangle_pose[2] = pose_new[2] + h_local[2]; print(second_triangle_pose)
+	# 	c_patch = T2.triangle(second_triangle_pose)
+	# 	TP.add_patch(c_patch)
+	# 	C.getPatches(T)
+	# 	C.getPatches(T2)
+	# 	C.getPatches(TP, clear = False)
+	# 	C.draw()
+	# 	plt.draw()
+	# 	plt.pause(0.001)
 	# pdb.set_trace()
-	# animation.write_gif("sinc_mpl.gif", fps = 20)
+
+
+
+	MOV = makeMovie()
+	animation = mpy.VideoClip(MOV.two_triangle_with_path, duration = 10)
+	animation.write_gif("sinc_mpl.gif", fps = 20)
 
