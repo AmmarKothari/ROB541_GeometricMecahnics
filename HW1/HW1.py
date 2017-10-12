@@ -66,7 +66,7 @@ class triangle(object):
 	# this is the object that will be rotated
 	def __init__(self):
 		self.patches = []
-		self.triangle_pose = [0,0,0]
+		self.pose = [0,0,0]
 		self.large_vertices = np.array([[-1,-1], [-1, 1], [1, 0]])
 		self.small_vertices = np.array([[0,1],[0,-1],[1,0]])
 
@@ -80,10 +80,6 @@ class triangle(object):
 		self.large_color  = [1,0,1]
 		self.small_color = [0,1,1]
 
-	def base_triangle(self, pose):
-		self.large_vertices_base = self.transform_points(self.large_vertices_base, pose)
-		self.small_vertices_base = self.transform_points(self.small_vertices_base, pose)
-
 	def rotation_matrix(self, theta):
 		c, s = np.cos(theta), np.sin(theta)
 		R = np.matrix([[c, -s], [s, c]])
@@ -96,6 +92,17 @@ class triangle(object):
 						[s,c,transform[1]],
 						[0,0,1]])
 		return T
+
+	def pose_from_transformation_matrix(self, transformation_matrix):
+		pose = np.zeros(3)
+		pose[0] = transformation_matrix[0,2]
+		pose[1] = transformation_matrix[1,2]
+		pose[2] = np.arctan2(transformation_matrix[0,1], transformation_matrix[0,0])
+		return pose
+
+	def base_triangle(self, pose):
+		self.large_vertices_base = self.transform_points(self.large_vertices_base, pose)
+		self.small_vertices_base = self.transform_points(self.small_vertices_base, pose)
 
 	def pts_to_pose(self, pts):
 		pose = [np.append(p,1) for p in pts] #make it transformation matrix friendly
@@ -117,6 +124,7 @@ class triangle(object):
 
 	def large_triangle(self, center_pose):
 		self.large_vertices = self.transform_points(self.large_vertices_base, center_pose)
+		# self.large_vertices = self.left_action(self.large_vertices_base, center_pose)
 		large_triangle = Polygon(self.large_vertices, True, alpha=0.4, color = self.large_color, edgecolor = 'k', linestyle = 'solid', linewidth = 2)
 		self.patches.append(large_triangle)
 
@@ -130,12 +138,26 @@ class triangle(object):
 		self.patches.append(center)
 		return center
 
-	def triangle(self, center_pose):
-		self.large_triangle(center_pose)
-		self.small_triangle(center_pose)
-		c = self.center(center_pose)
+	def left_action(self, current_pose, global_pose):
+		combined_transformation = np.dot(self.transformation_matrix(global_pose), self.transformation_matrix(current_pose))
+		pose = self.pose_from_transformation_matrix(combined_transformation)
+		pose[2] = current_pose[2] + global_pose[2]
+		self.pose = pose
+		self.large_triangle(pose)
+		self.small_triangle(pose)
+		c = self.center(pose)
 		return c
 
+	def right_action(self, current_pose, relative_pose):
+		combined_transformation = np.dot(self.transformation_matrix(current_pose), self.transformation_matrix(relative_pose))
+		pose = self.pose_from_transformation_matrix(combined_transformation)
+		pose[2] = current_pose[2] + relative_pose[2] # i have no idea why this is here?!? but it seems to work -- is this from the semidirect feature of the group?
+		# if so, why doesn't it come straight out of the matrix multiplcation?  Why do I have to adjust it here?
+		self.large_triangle(pose)
+		self.small_triangle(pose)
+		c = self.center(pose)
+		return c
+		
 	def draw(self):
 		self.ax.clear()
 		p = PatchCollection(self.patches, alpha=0.4, match_original=True)
@@ -206,14 +228,12 @@ class makeMovie(object):
 
 	def two_triangle_with_path(self,t):
 		h_local = [-2,-1,np.pi/4]
-		base_pt = [0,0,1]
+		base_pose = [0,0,0]
 		cur_pose = self.path[int(t*10)]
-		c_patch = self.T.triangle(cur_pose)
+		c_patch = self.T.left_action(base_pose, cur_pose)
 		self.TP.add_patch(c_patch)
 		#find local pose given new pose
-		second_triangle_pose = np.dot(np.dot(self.T.transformation_matrix(cur_pose), self.T.transformation_matrix(h_local)), base_pt)
-		second_triangle_pose[2] = cur_pose[2] + h_local[2]
-		c_patch = self.T2.triangle(second_triangle_pose)
+		c_patch = self.T2.right_action(cur_pose, h_local)
 		self.TP.add_patch(c_patch)
 		self.C.getPatches(self.T)
 		self.C.getPatches(self.T2)
@@ -230,22 +250,20 @@ class makeMovie(object):
 
 if __name__ == '__main__':
 	# f,ax = plt.subplots(1,1)
-	# base_pose = [0,0,np.pi]
-	# base_pt = [0,0,1]
+	# base_pose = [0,0,0]
 	# C = canvas(f,ax)
 	# T = triangle()
 	# T2 = triangle()
 	# TP = track_path()
 	# MP = motion_path()
-	# h_local = [2,-2,np.pi/4]
+	# h_local = [-2,-2,np.pi/4]
 	# path = MP.motion_path_pts(100)
 	# for pose_new in path:
-	# 	T.triangle(pose_new)
-	# 	#find local pose given new pose
-	# 	second_triangle_pose = np.dot(np.dot(T.transformation_matrix(pose_new), T.transformation_matrix(h_local)), base_pt)
-	# 	second_triangle_pose[2] = pose_new[2] + h_local[2]; print(second_triangle_pose)
-	# 	c_patch = T2.triangle(second_triangle_pose)
-	# 	TP.add_patch(c_patch)
+	# 	c1 = T.left_action(base_pose, pose_new)
+	# 	c2 = T2.right_action(pose_new, h_local)
+	# # 	#find local pose given new pose
+	# 	TP.add_patch(c1)
+	# 	TP.add_patch(c2)
 	# 	C.getPatches(T)
 	# 	C.getPatches(T2)
 	# 	C.getPatches(TP, clear = False)
@@ -258,5 +276,5 @@ if __name__ == '__main__':
 
 	MOV = makeMovie()
 	animation = mpy.VideoClip(MOV.two_triangle_with_path, duration = 10)
-	animation.write_gif("sinc_mpl.gif", fps = 20)
+	animation.write_gif("HW1.gif", fps = 20)
 
