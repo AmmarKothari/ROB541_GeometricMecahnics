@@ -97,7 +97,8 @@ class triangle(object):
 		pose = np.zeros(3)
 		pose[0] = transformation_matrix[0,2]
 		pose[1] = transformation_matrix[1,2]
-		pose[2] = np.arctan2(transformation_matrix[0,1], transformation_matrix[0,0])
+		# pose[2] = np.arctan2(transformation_matrix[0,1], transformation_matrix[0,0])
+		pose[2] = np.arctan2(transformation_matrix[1,0], transformation_matrix[0,0])
 		return pose
 
 	def base_triangle(self, pose):
@@ -141,7 +142,7 @@ class triangle(object):
 	def left_action(self, current_pose, global_pose):
 		combined_transformation = np.dot(self.transformation_matrix(global_pose), self.transformation_matrix(current_pose))
 		pose = self.pose_from_transformation_matrix(combined_transformation)
-		pose[2] = current_pose[2] + global_pose[2]
+		# pose[2] = current_pose[2] + global_pose[2]
 		self.pose = pose
 		self.large_triangle(pose)
 		self.small_triangle(pose)
@@ -151,7 +152,7 @@ class triangle(object):
 	def right_action(self, current_pose, relative_pose):
 		combined_transformation = np.dot(self.transformation_matrix(current_pose), self.transformation_matrix(relative_pose))
 		pose = self.pose_from_transformation_matrix(combined_transformation)
-		pose[2] = current_pose[2] + relative_pose[2] # i have no idea why this is here?!? but it seems to work -- is this from the semidirect feature of the group?
+		# pose[2] = current_pose[2] + relative_pose[2] # i have no idea why this is here?!? but it seems to work -- is this from the semidirect feature of the group?
 		# if so, why doesn't it come straight out of the matrix multiplcation?  Why do I have to adjust it here?
 		self.large_triangle(pose)
 		self.small_triangle(pose)
@@ -249,32 +250,32 @@ class makeMovie(object):
 
 
 if __name__ == '__main__':
-	# f,ax = plt.subplots(1,1)
-	# base_pose = [0,0,0]
-	# C = canvas(f,ax)
-	# T = triangle()
-	# T2 = triangle()
-	# TP = track_path()
-	# MP = motion_path()
-	# h_local = [-2,-2,np.pi/4]
-	# path = MP.motion_path_pts(100)
-	# for pose_new in path:
-	# 	c1 = T.left_action(base_pose, pose_new)
-	# 	c2 = T2.right_action(pose_new, h_local)
-	# # 	#find local pose given new pose
-	# 	TP.add_patch(c1)
-	# 	TP.add_patch(c2)
-	# 	C.getPatches(T)
-	# 	C.getPatches(T2)
-	# 	C.getPatches(TP, clear = False)
-	# 	C.draw()
-	# 	plt.draw()
-	# 	plt.pause(0.001)
-	# pdb.set_trace()
+	f,ax = plt.subplots(1,1)
+	base_pose = [0,0,0]
+	C = canvas(f,ax)
+	T = triangle()
+	T2 = triangle()
+	TP = track_path()
+	MP = motion_path()
+	h_local = [-2,-2,np.pi/4]
+	path = MP.motion_path_pts(100)
+	for pose_new in path:
+		c1 = T.left_action(base_pose, pose_new)
+		c2 = T2.right_action(pose_new, h_local)
+	# 	#find local pose given new pose
+		TP.add_patch(c1)
+		TP.add_patch(c2)
+		C.getPatches(T)
+		C.getPatches(T2)
+		C.getPatches(TP, clear = False)
+		C.draw()
+		plt.draw()
+		plt.pause(0.001)
+	pdb.set_trace()
 
 
 
-	MOV = makeMovie()
-	animation = mpy.VideoClip(MOV.two_triangle_with_path, duration = 10)
-	animation.write_gif("HW1.gif", fps = 20)
+	# MOV = makeMovie()
+	# animation = mpy.VideoClip(MOV.two_triangle_with_path, duration = 10)
+	# animation.write_gif("HW1.gif", fps = 20)
 
