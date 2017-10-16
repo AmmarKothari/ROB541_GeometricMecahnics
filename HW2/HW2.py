@@ -3,6 +3,8 @@ import pdb
 import matplotlib.pyplot as plt
 from pprint import pprint
 from ROB514_GeometricMechanics.HW1 import canvas, triangle, motion_path, track_path, makeMovie
+from matplotlib.animation import FuncAnimation
+
 
 pi = np.pi
 cos = np.cos
@@ -34,12 +36,10 @@ class makeMovie2(makeMovie):
 		self.plotBodies()
 		self.C.draw()
 		plt.draw()
-		# pdb.set_trace()
 		t_last = 0
 		for t in np.arange(0,TIME_START,TIME_DELTA):
 			t_delta = t - t_last
 			t_last = t
-			# pdb.set_trace()
 			gs_dot = [np.dot(self.T.transformation_matrix(g_i), g_circ_right) for g_i in self.gs]
 			for i,g_i in enumerate(self.gs):
 				h = g_circ_right * t_delta
@@ -88,6 +88,13 @@ class makeMovie2(makeMovie):
 			body_vel1 = self.T.g_circ_right(self.T.pose, vel1)
 			c_patch = self.T.left_action(base_pose, cur_pose)
 			self.T.drawVelocity(vel1)
+
+
+			g_circ_left = self.T.g_circ_left(cur_pose, vel1)
+			self.T.drawSpatialGeneratorFieldLeft(self.ax, cur_pose, g_circ_left)
+			g_circ_right = self.T.g_circ_right(cur_pose, vel1)
+			self.T.drawSpatialGeneratorFieldRight(self.ax, cur_pose, g_circ_right)
+
 			self.TP.add_patch(c_patch)
 			#find local pose given new pose
 			c_patch = self.T2.right_action(cur_pose, h_local)
@@ -117,21 +124,24 @@ class makeMovie2(makeMovie):
 		self.T_base2 = triangle()
 		plt.ion()
 		plt.show()
-		last_t = -0.1
+		self.last_t = -0.1
 		base_pose = [0,0,0]
 		h_local = [-2,-1,np.pi/4]
 		for t in np.arange(0,TIME_START,TIME_DELTA):
 			cur_pose = self.path[int(t*10)]
-			vel1 = (np.array(self.T.pose) - np.array(self.T.last_pose)) / (t - last_t)
+			vel1 = (np.array(self.T.pose) - np.array(self.T.last_pose)) / (t - self.last_t)
 			body_vel1 = self.T.g_circ_right(self.T.pose, vel1)
 			c_patch = self.T.left_action(base_pose, cur_pose)
 			self.T.drawVelocity(vel1)
+
+			g_circ_left = self.T.g_circ_left(cur_pose, vel1)
+			self.T.drawSpatialGeneratorField(self.ax, cur_pose, g_circ_left)
 			self.T_base1.move_to_pose([0,0,0])
 			self.T_base1.drawVelocity(body_vel1)
 			self.TP.add_patch(c_patch)
 			#find local pose given new pose
 			c_patch = self.T2.right_action(cur_pose, h_local)
-			vel2 = (np.array(self.T2.pose) - np.array(self.T2.last_pose)) / (t - last_t)
+			vel2 = (np.array(self.T2.pose) - np.array(self.T2.last_pose)) / (t - self.last_t)
 			body_vel2 = self.T2.g_circ_right(self.T2.pose, vel2)
 			self.T2.drawVelocity(vel2)
 			self.T_base2.move_to_pose([0,0,0])
@@ -146,25 +156,37 @@ class makeMovie2(makeMovie):
 			self.C2.draw()
 			self.C3.getPatches(self.T_base2)
 			self.C3.draw()
+			self.last_t = t
 			plt.draw()
 			plt.pause(0.0001)
-			last_t = t
+			yield self.f
 
+	def triangle_with_body_velocity_animation(self):
+		[frame for frame in self.triangle_with_body_velocity()]
+
+
+	def triangle_with_body_velocity_gif(self):
+		gen = self.triangle_with_body_velocity()
+		frame_func = lambda t: next(gen)
+		animation = FuncAnimation(self.f, frame_func, frames = np.arange(0,TIME_START,TIME_DELTA), interval = 200)
+		animation.save('HW2.gif', dpi = 80, writer = 'imagemagick')
 
 if __name__ == '__main__':
-	# M = makeMovie2()
+	M = makeMovie2()
 	# M.bodyVelocity()
 	# M.spatialVelocity()
 	# M.single_triangle_with_velocity()
 	# M.triangle_with_body_velocity()
+	
 
-	T = triangle()
-	out = T.spatialGeneratorField([1,0,np.pi/2])
-	ax = plt.subplot(1,1,1)
-	T.drawSpatialGeneratorField(ax,out)
-	plt.show()
+	# T = triangle()
+	# out = T.spatialGeneratorField([1,0,np.pi/2])
+	# ax = plt.subplot(1,1,1)
+	# T.drawSpatialGeneratorField(ax,out)
+	# plt.show()
 
 
-
+	# M.triangle_with_body_velocity_animation()
+	M.single_triangle_with_velocity()
 
 	pdb.set_trace()

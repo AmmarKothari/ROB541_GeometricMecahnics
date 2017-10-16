@@ -203,32 +203,76 @@ class triangle(object):
 		# self.patches.append(rotation_patch)
 		self.patches.append(translation_patch)
 
-	def spatialGeneratorField(self, g_circ):
-		#should be the same regardless of g_circ right or left?
-		# because initial condition is the identity
-		if g_circ[2] < 1e-10:
-			x_dot = g_circ[0]
-			y_dot = g_circ[1]
-			theta_dot = g_circ[2]
-		else:
-			x_circ = g_circ[0]
-			y_circ = g_circ[1]
-			theta_circ = g_circ[2]
-			lifted_action = np.array([	[np.sin(theta_circ), np.cos(theta_circ) - 1],
-										[1 - np.cos(theta_circ), np.sin(theta_circ)]])
-			circ = np.array([x_circ, y_circ]).reshape(-1,1)
-			out = 1/theta_circ * np.dot(lifted_action, circ)
-			x_dot = out[0]
-			y_dot = out[1]
-			theta_dot = theta_circ
+	# def spatialGeneratorField(self, g_circ):
+	# 	#should be the same regardless of g_circ right or left?
+	# 	# because initial condition is the identity
+	# 	if g_circ[2] < 1e-10:
+	# 		x_dot = g_circ[0]
+	# 		y_dot = g_circ[1]
+	# 		theta_dot = g_circ[2]
+	# 	else:
+	# 		x_circ = g_circ[0]
+	# 		y_circ = g_circ[1]
+	# 		theta_circ = g_circ[2]
+	# 		lifted_action = np.array([	[np.sin(theta_circ), np.cos(theta_circ) - 1],
+	# 									[1 - np.cos(theta_circ), np.sin(theta_circ)]])
+	# 		circ = np.array([x_circ, y_circ]).reshape(-1,1)
+	# 		out = 1/theta_circ * np.dot(lifted_action, circ)
+	# 		x_dot = out[0]
+	# 		y_dot = out[1]
+	# 		theta_dot = theta_circ
 
-		return [x_dot, y_dot, theta_dot]
+	# 	return [x_dot, y_dot, theta_dot]
 
-	def drawSpatialGeneratorField(self, ax, g_dot):
-		X,Y = np.meshgrid(np.arange(0,5,0.5), np.arange(0,5,0.5))
-		U = X*0 + g_dot[0]
-		V = Y*0 + g_dot[1]
+	def spatialGeneratorField(self, g, g_circ_left):
+		# page 86 of the book
+		theta = g[2]
+		c = np.cos(g[2])
+		s = np.sin(g[2])
+		# left_lifted_action = [	[1,0,-g[1]]
+		# 						[0,1,g[0]]
+		# 						[0,0,1]
+		# 					]
+
+		left_lifted_action = [	[c,-s,0],
+								[s,c,0],
+								[0,0,1]
+								]
+
+		g_dot = np.dot(left_lifted_action, g_circ_left)
+		return g_dot
+
+
+	def drawSpatialGeneratorFieldLeft(self, ax, g, g_circ_left):
+		R = np.arange(-5,5,0.5)
+		X,Y = np.meshgrid(R, R)
+		U = copy.deepcopy(X)
+		V = copy.deepcopy(Y)
+		for ix,x in enumerate(R):
+			for iy,y in enumerate(R):
+				g_dot = self.g_dot_from_g_circ_left([x,y,g[2]], g_circ_left)
+				U[ix, iy] = g_dot[0]
+				V[ix, iy] = g_dot[1]
 		Q = ax.quiver(X, Y, U, V, units='width')
+		if (U > 0).any() or (V > 0).any():
+			plt.draw()
+			pdb.set_trace()
+
+	def drawSpatialGeneratorFieldRight(self, ax, g, g_circ_right):
+		R = np.arange(-5,5,0.5)
+		X,Y = np.meshgrid(R, R)
+		U = copy.deepcopy(X)
+		V = copy.deepcopy(Y)
+		for ix,x in enumerate(R):
+			for iy,y in enumerate(R):
+				g_dot = self.g_dot_from_g_circ_right([x,y,g[2]], g_circ_right)
+				U[ix, iy] = g_dot[0]
+				V[ix, iy] = g_dot[1]
+		Q = ax.quiver(X, Y, U, V, units='width')
+		if (U > 0).any() or (V > 0).any():
+			plt.draw()
+			pdb.set_trace()
+
 
 
 class motion_path(object):
@@ -275,9 +319,9 @@ class track_path(object):
 
 class makeMovie(object):
 	def __init__(self):
-		ax = plt.subplot(1,1,1)
-		f = ax.get_figure()
-		self.C = canvas(f,ax)
+		self.ax = plt.subplot(1,1,1)
+		self.f = self.ax.get_figure()
+		self.C = canvas(self.f,self.ax)
 		# self.ax_list = plt.subplot(1,3,1)
 		# f = self.ax_list[0].get_figure()
 		# self.C = canvas(f,self.ax_list[0])
