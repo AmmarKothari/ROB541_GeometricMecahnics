@@ -32,7 +32,7 @@ local frame.
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Polygon, Circle, Arc
+from matplotlib.patches import Polygon, Circle, Arc, Arrow, FancyArrowPatch, FancyArrow
 from matplotlib.collections import PatchCollection
 import pdb
 import matplotlib
@@ -56,26 +56,27 @@ class canvas(object):
 		self.ax.clear()
 		p = PatchCollection(self.patches, alpha=0.4, match_original=True)
 		self.ax.add_collection(p)
-		plt.xlim(-5, 5)
-		plt.ylim(-5, 5)
-		plt.xlabel('X'); plt.ylabel('Y')
+		self.ax.set_xlim(-5, 5)
+		self.ax.set_ylim(-5, 5)
+		self.ax.set_xlabel('X'); self.ax.set_ylabel('Y')
+		self.ax.set_aspect('equal')
 		self.patches = []
 
 
 class triangle(object):
 	# this is the object that will be rotated
-	def __init__(self):
+	def __init__(self, base_pose = [0,0,0], scale = 1):
 		self.patches = []
-		self.pose = [0,0,0]
-		self.large_vertices = np.array([[-1,-1], [-1, 1], [1, 0]])
-		self.small_vertices = np.array([[0,1],[0,-1],[1,0]])
+		self.pose = base_pose
+		self.last_pose = base_pose
+		self.large_vertices = np.array([[-1,-1], [-1, 1], [1, 0]]) * scale
+		self.small_vertices = np.array([[0,1],[0,-1],[1,0]]) * scale
 
-		self.large_vertices_base = np.array([[-1,-1], [-1, 1], [1, 0]])
+		self.large_vertices_base = np.array([[-1,-1], [-1, 1], [1, 0]]) * scale
 		### to scale, subtract point to scale around, scale, add point to scale around
-		scale_factor = 0.5
+		scale_factor = 0.5 * scale
 		scale_point = self.large_vertices_base[-1]
 		self.small_vertices_base = (self.large_vertices_base - scale_point) * [scale_factor, scale_factor] + scale_point
-
 		self.circle_color = [0.5, 0.5, 0.5]
 		self.large_color  = [1,0,1]
 		self.small_color = [0,1,1]
@@ -142,30 +143,93 @@ class triangle(object):
 	def left_action(self, current_pose, global_pose):
 		combined_transformation = np.dot(self.transformation_matrix(global_pose), self.transformation_matrix(current_pose))
 		pose = self.pose_from_transformation_matrix(combined_transformation)
-		# pose[2] = current_pose[2] + global_pose[2]
+		c = self.move_to_pose(pose)
+		return c
+
+	def right_action(self, current_pose, relative_pose):
+		combined_transformation = np.dot(self.transformation_matrix(current_pose), self.transformation_matrix(relative_pose))
+		pose = self.pose_from_transformation_matrix(combined_transformation)
+		c = self.move_to_pose(pose)
+		return c
+
+	def move_to_pose(self, pose):
+		self.last_pose = self.pose
 		self.pose = pose
 		self.large_triangle(pose)
 		self.small_triangle(pose)
 		c = self.center(pose)
 		return c
 
-	def right_action(self, current_pose, relative_pose):
-		combined_transformation = np.dot(self.transformation_matrix(current_pose), self.transformation_matrix(relative_pose))
-		pose = self.pose_from_transformation_matrix(combined_transformation)
-		# pose[2] = current_pose[2] + relative_pose[2] # i have no idea why this is here?!? but it seems to work -- is this from the semidirect feature of the group?
-		# if so, why doesn't it come straight out of the matrix multiplcation?  Why do I have to adjust it here?
-		self.large_triangle(pose)
-		self.small_triangle(pose)
-		c = self.center(pose)
-		return c
-		
-	def draw(self):
-		self.ax.clear()
-		p = PatchCollection(self.patches, alpha=0.4, match_original=True)
-		self.ax.add_collection(p)
-		plt.xlim(-5, 5)
-		plt.ylim(-5, 5)
-		self.patches = []
+	def inverse_action(self, pose):
+		# undoing a transform = undoing translation and then undoing rotation
+		transl_inv = self.transformation_matrix([-pose[0], -pose[1], 0])
+		rot_inv = self.transformation_matrix([0,0,pose[2]])
+		T = np.dot(transl_inv, rot_inv)
+		return T
+
+	def g_circ_right(self, g, g_dot): # body velocity
+		# g is pose
+		theta = g[2]
+		inverse_lifted_action = [ 	[np.cos(theta), np.sin(theta), 0],
+									[-np.sin(theta), np.cos(theta), 0],
+									[0, 0, 1]	]
+		g_circ_right = np.dot(inverse_lifted_action, np.array(g_dot).reshape(-1,1))
+		return g_circ_right
+
+	def g_circ_left(self, g, g_dot): # spatial velocity
+		inverse_lifted_action = [ 	[1, 0, g[1]],
+									[0, 1, -g[0]],
+									[0, 0, 1]
+								]
+		g_circ_left = np.dot(inverse_lifted_action, np.array(g_dot).reshape(-1,1))
+		return g_circ_left
+
+	def g_dot_from_g_circ_left(self, g, g_circ_left):
+		lifted_action = [ 	[1, 0, -g[1]	],
+							[0, 1, g[0]		],
+							[0, 0, 1]
+		]
+		g_dot = np.dot(lifted_action, g_circ_left)
+		return g_dot
+
+	def drawVelocity(self, vel):
+		# draws an arrow at current location (self.pose) in direction of x and y components
+		# draw a circular arrow at current location to show rotation?
+		translation_patch = Arrow(self.pose[0],self.pose[1], vel[0], vel[1])
+		r = 0.5
+		start = np.array([self.pose[0], self.pose[1]]) + r*np.array([np.cos(self.pose[2]), np.sin(self.pose[2])])
+		end = np.array([self.pose[0], self.pose[1]]) + r*np.array([np.cos(self.pose[2] + vel[2]), np.sin(self.pose[2] + vel[2])])
+		# rotation_patch = FancyArrowPatch(posA = start, posB = end, connectionstyle = 'arc3,rad=%s' %vel[2])
+		# self.patches.append(rotation_patch)
+		self.patches.append(translation_patch)
+
+	def spatialGeneratorField(self, g_circ):
+		#should be the same regardless of g_circ right or left?
+		# because initial condition is the identity
+		if g_circ[2] < 1e-10:
+			x_dot = g_circ[0]
+			y_dot = g_circ[1]
+			theta_dot = g_circ[2]
+		else:
+			x_circ = g_circ[0]
+			y_circ = g_circ[1]
+			theta_circ = g_circ[2]
+			lifted_action = np.array([	[np.sin(theta_circ), np.cos(theta_circ) - 1],
+										[1 - np.cos(theta_circ), np.sin(theta_circ)]])
+			circ = np.array([x_circ, y_circ]).reshape(-1,1)
+			out = 1/theta_circ * np.dot(lifted_action, circ)
+			x_dot = out[0]
+			y_dot = out[1]
+			theta_dot = theta_circ
+
+		return [x_dot, y_dot, theta_dot]
+
+	def drawSpatialGeneratorField(self, ax, g_dot):
+		X,Y = np.meshgrid(np.arange(0,5,0.5), np.arange(0,5,0.5))
+		U = X*0 + g_dot[0]
+		V = Y*0 + g_dot[1]
+		Q = ax.quiver(X, Y, U, V, units='width')
+
 
 class motion_path(object):
 	def __init__(self):
@@ -207,12 +271,16 @@ class track_path(object):
 		self.patches = []
 
 	def add_patch(self, patch):
-		self.patches.append(patch)
+		self.patches.append(patch,)
 
 class makeMovie(object):
 	def __init__(self):
-		f,ax = plt.subplots(1,1)
+		ax = plt.subplot(1,1,1)
+		f = ax.get_figure()
 		self.C = canvas(f,ax)
+		# self.ax_list = plt.subplot(1,3,1)
+		# f = self.ax_list[0].get_figure()
+		# self.C = canvas(f,self.ax_list[0])
 		self.T = triangle()
 		self.T2 = triangle()
 		self.path = self.MP = motion_path()
@@ -250,32 +318,32 @@ class makeMovie(object):
 
 
 if __name__ == '__main__':
-	f,ax = plt.subplots(1,1)
-	base_pose = [0,0,0]
-	C = canvas(f,ax)
-	T = triangle()
-	T2 = triangle()
-	TP = track_path()
-	MP = motion_path()
-	h_local = [-2,-2,np.pi/4]
-	path = MP.motion_path_pts(100)
-	for pose_new in path:
-		c1 = T.left_action(base_pose, pose_new)
-		c2 = T2.right_action(pose_new, h_local)
-	# 	#find local pose given new pose
-		TP.add_patch(c1)
-		TP.add_patch(c2)
-		C.getPatches(T)
-		C.getPatches(T2)
-		C.getPatches(TP, clear = False)
-		C.draw()
-		plt.draw()
-		plt.pause(0.001)
-	pdb.set_trace()
+	# f,ax = plt.subplots(1,1)
+	# base_pose = [0,0,0]
+	# C = canvas(f,ax)
+	# T = triangle()
+	# T2 = triangle()
+	# TP = track_path()
+	# MP = motion_path()
+	# h_local = [-2,-2,np.pi/4]
+	# path = MP.motion_path_pts(100)
+	# for pose_new in path:
+	# 	c1 = T.left_action(base_pose, pose_new)
+	# 	c2 = T2.right_action(pose_new, h_local)
+	# # 	#find local pose given new pose
+	# 	TP.add_patch(c1)
+	# 	TP.add_patch(c2)
+	# 	C.getPatches(T)
+	# 	C.getPatches(T2)
+	# 	C.getPatches(TP, clear = False)
+	# 	C.draw()
+	# 	plt.draw()
+	# 	plt.pause(0.001)
+	# pdb.set_trace()
 
 
 
-	# MOV = makeMovie()
-	# animation = mpy.VideoClip(MOV.two_triangle_with_path, duration = 10)
-	# animation.write_gif("HW1.gif", fps = 20)
+	MOV = makeMovie()
+	animation = mpy.VideoClip(MOV.two_triangle_with_path, duration = 10)
+	animation.write_gif("HW1.gif", fps = 20)
 

@@ -2,71 +2,169 @@ import numpy as np
 import pdb
 import matplotlib.pyplot as plt
 from pprint import pprint
-
-
-def transformation_matrix(pose):
-	# transform: x, y, theta
-	c, s = cos(pose[2]), sin(pose[2])
-	T = np.array([ [c,-s,pose[0]],
-					[s,c,pose[1]],
-					[0,0,1]])
-	return T
-
-def inverse_transformation_matrix(pose):
-	T = transformation_matrix(pose)
-	T_inv = np.linalg.inv(T)
-	return T_inv
-
-def pose_from_transformation(transformation_matrix):
-	pose = np.zeros(3)
-	pose[0] = transformation_matrix[0,2]
-	pose[1] = transformation_matrix[1,2]
-	pose[2] = np.arctan2(transformation_matrix[0,1], transformation_matrix[0,0])
-	return pose
-
-
-
-def inverse_pose(pose):
-	inv_pose = np.copy(pose)
-	# inv_pose = np.zeros_like(pose)
-	inv_pose[0] *= -1
-	inv_pose[1] *= -1
-	inv_pose[2] *= -1
-	return inv_pose
-
+from ROB514_GeometricMechanics.HW1 import canvas, triangle, motion_path, track_path, makeMovie
 
 pi = np.pi
 cos = np.cos
 sin = np.sin
 
-g = [1,1,-pi/4]
-g_dot = np.array([1,0,1])
+TIME_START = 10.0
+TIME_DELTA = 0.1
+TRIANGLE_SCALE = 0.2
+Gb = [1,1,-pi/4]
+G1 = [0,0,0]
+G2 = [-1,1,pi/2]
+G3 = [-1,-1,-pi/4]
+G4 = [1,-1,pi]
+G_DOT = np.array([1,0,1])
 
-# g circ right == body velocity
-g_circ_right = np.dot(inverse_transformation_matrix(g), transformation_matrix(g_dot))
+class makeMovie2(makeMovie):
+	def __init__(self):
+		super(makeMovie2, self).__init__()
 
-g1 = [0,0,0]
-g2 = [-1,1,pi/2]
-g3 = [-1,-1,-pi/4]
+	def bodyVelocity(self):
+		plt.ion()
+		plt.show()
+		self.gs = [Gb, G1, G2, G3, G4]
+		g_dot = G_DOT
+		g_circ_right = self.T.g_circ_right(self.gs[0], g_dot)
+		self.triangles = [triangle(g, scale = TRIANGLE_SCALE) for g in self.gs]
+		patches = [t.right_action(t.pose, [0,0,0]) for t in self.triangles]
+		[self.TP.add_patch(p) for p in patches]
+		self.plotBodies()
+		self.C.draw()
+		plt.draw()
+		# pdb.set_trace()
+		t_last = 0
+		for t in np.arange(0,TIME_START,TIME_DELTA):
+			t_delta = t - t_last
+			t_last = t
+			# pdb.set_trace()
+			gs_dot = [np.dot(self.T.transformation_matrix(g_i), g_circ_right) for g_i in self.gs]
+			for i,g_i in enumerate(self.gs):
+				h = g_circ_right * t_delta
+				p = self.triangles[i].right_action(self.triangles[i].pose, h)
+				self.TP.add_patch(p)
+			self.plotBodies()
+			self.C.getPatches(self.TP, clear = False)
 
-# gs = [g1, g2, g3]
-gs = [g, g1]
-gs_dot = [np.dot(transformation_matrix(g_i), g_circ_right) for g_i in gs]
+	def spatialVelocity(self):
+		plt.ion()
+		plt.show()
+		self.gs = [Gb, G1, G2, G3, G4]
+		g_dot = G_DOT
+		g_circ_left = self.T.g_circ_left(self.gs[0], g_dot)
+		self.triangles = [triangle(g, scale = TRIANGLE_SCALE) for g in self.gs]
+		patches = [t.right_action(t.pose, [0,0,0]) for t in self.triangles]
+		[self.TP.add_patch(p) for p in patches]
+		self.plotBodies()
+		self.C.draw()
+		plt.draw()
+		t_last = 0
+		for t in np.arange(0,TIME_START,TIME_DELTA):
+			t_delta = t - t_last
+			t_last = t
+			for i,g_i in enumerate(self.gs):
+				p = self.triangles[i].left_action(self.triangles[i].pose, g_circ_left * t_delta)
+				self.TP.add_patch(p)
+			self.plotBodies()
+			self.C.getPatches(self.TP, clear = False)
+			self.C.draw()
+			plt.draw()
+			plt.pause(0.001)
 
-plt.plot(g[0], g[1], 'bo', markersize = 20)
-[plt.plot(x[0], x[1], 'go', markersize = 20) for x in gs]
+	def plotBodies(self):
+		[self.C.getPatches(t)  for t in self.triangles]
 
-t_last = 0
-for t in np.arange(0,1,0.01):
-	t_delta = t - t_last
-	t_last = t
-	for i,g_i in enumerate(gs):
-		gs[i] = pose_from_transformation(transformation_matrix(g_i) + gs_dot[i]*t_delta)
-	[plt.plot(g_i[0], g_i[1], 'ro') for g_i in gs]
-	gs_dot = [np.dot(transformation_matrix(g_i), g_circ_right) for g_i in gs]
-	plt.draw()
-	plt.pause(0.001)
+	def single_triangle_with_velocity(self):
+		plt.ion()
+		plt.show()
+		last_t = -0.1
+		base_pose = [0,0,0]
+		for t in np.arange(0,TIME_START,TIME_DELTA):
+			h_local = [-2,-1,np.pi/4]
+			cur_pose = self.path[int(t*10)]
+			vel1 = (np.array(self.T.pose) - np.array(self.T.last_pose)) / (t - last_t)
+			body_vel1 = self.T.g_circ_right(self.T.pose, vel1)
+			c_patch = self.T.left_action(base_pose, cur_pose)
+			self.T.drawVelocity(vel1)
+			self.TP.add_patch(c_patch)
+			#find local pose given new pose
+			c_patch = self.T2.right_action(cur_pose, h_local)
+			vel2 = (np.array(self.T2.pose) - np.array(self.T2.last_pose)) / (t - last_t)
+			self.T2.drawVelocity(vel2)
+			self.TP.add_patch(c_patch)
+			self.C.getPatches(self.T)
+			self.C.getPatches(self.T2)
+			self.C.getPatches(self.TP, clear = False)
+			self.C.draw()
+			plt.draw()
+			plt.pause(0.0001)
+			last_t = t
+			# print('Vel1: %s, Vel2: %s' %(vel1[2], vel2[2]))
+			print('Body Vel1: %s' %body_vel1)
 
-plt.show()
+	def triangle_with_body_velocity(self):
+		plt.figure(1)
+		self.ax = plt.subplot2grid((2,2), (0,0), colspan=2)
+		self.ax2 = plt.subplot2grid((2,2), (1,0), colspan=1)
+		self.ax3 = plt.subplot2grid((2,2), (1,1), colspan=1)
+		self.f = self.ax.get_figure()
+		self.C = canvas(self.f,self.ax)
+		self.C2 = canvas(self.f, self.ax2)	
+		self.C3 = canvas(self.f, self.ax3)
+		self.T_base1 = triangle()
+		self.T_base2 = triangle()
+		plt.ion()
+		plt.show()
+		last_t = -0.1
+		base_pose = [0,0,0]
+		h_local = [-2,-1,np.pi/4]
+		for t in np.arange(0,TIME_START,TIME_DELTA):
+			cur_pose = self.path[int(t*10)]
+			vel1 = (np.array(self.T.pose) - np.array(self.T.last_pose)) / (t - last_t)
+			body_vel1 = self.T.g_circ_right(self.T.pose, vel1)
+			c_patch = self.T.left_action(base_pose, cur_pose)
+			self.T.drawVelocity(vel1)
+			self.T_base1.move_to_pose([0,0,0])
+			self.T_base1.drawVelocity(body_vel1)
+			self.TP.add_patch(c_patch)
+			#find local pose given new pose
+			c_patch = self.T2.right_action(cur_pose, h_local)
+			vel2 = (np.array(self.T2.pose) - np.array(self.T2.last_pose)) / (t - last_t)
+			body_vel2 = self.T2.g_circ_right(self.T2.pose, vel2)
+			self.T2.drawVelocity(vel2)
+			self.T_base2.move_to_pose([0,0,0])
+			self.T_base2.drawVelocity(body_vel2)
 
-pdb.set_trace()
+			self.TP.add_patch(c_patch)
+			self.C.getPatches(self.T)
+			self.C.getPatches(self.T2)
+			self.C.getPatches(self.TP, clear = False)
+			self.C.draw()
+			self.C2.getPatches(self.T_base1)
+			self.C2.draw()
+			self.C3.getPatches(self.T_base2)
+			self.C3.draw()
+			plt.draw()
+			plt.pause(0.0001)
+			last_t = t
+
+
+if __name__ == '__main__':
+	# M = makeMovie2()
+	# M.bodyVelocity()
+	# M.spatialVelocity()
+	# M.single_triangle_with_velocity()
+	# M.triangle_with_body_velocity()
+
+	T = triangle()
+	out = T.spatialGeneratorField([1,0,np.pi/2])
+	ax = plt.subplot(1,1,1)
+	T.drawSpatialGeneratorField(ax,out)
+	plt.show()
+
+
+
+
+	pdb.set_trace()
