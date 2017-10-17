@@ -54,6 +54,7 @@ class makeMovie2(makeMovie):
 		self.gs = [Gb, G1, G2, G3, G4]
 		g_dot = G_DOT
 		g_circ_left = self.T.g_circ_left(self.gs[0], g_dot)
+		g_circ_right = self.T.g_circ_right(self.gs[0], g_dot)
 		self.triangles = [triangle(g, scale = TRIANGLE_SCALE) for g in self.gs]
 		patches = [t.right_action(t.pose, [0,0,0]) for t in self.triangles]
 		[self.TP.add_patch(p) for p in patches]
@@ -66,12 +67,26 @@ class makeMovie2(makeMovie):
 			t_last = t
 			for i,g_i in enumerate(self.gs):
 				p = self.triangles[i].left_action(self.triangles[i].pose, g_circ_left * t_delta)
+				# g_dot_left = self.triangles[i].g_dot_from_g_circ_left(self.triangles[i].pose, g_circ_left)
+				# p = self.triangles[i].move_to_pose(self.triangles[i].pose + g_dot_left.T[0] * t_delta)
 				self.TP.add_patch(p)
+			self.triangles[i].drawSpatialGeneratorFieldLeft(self.ax, self.triangles[i].pose, g_circ_left * t_delta)
 			self.plotBodies()
 			self.C.getPatches(self.TP, clear = False)
 			self.C.draw()
 			plt.draw()
 			plt.pause(0.001)
+			yield self.f
+
+	def spatialVelocity_animation(self):
+		[frame for frame in self.triangle_with_body_velocity()]
+
+
+	def spatialVelocity_gif(self):
+		gen = self.spatialVelocity()
+		frame_func = lambda t: next(gen)
+		animation = FuncAnimation(self.f, frame_func, frames = np.arange(0,TIME_START,TIME_DELTA), interval = 200)
+		animation.save('HW2_supplemental.gif', dpi = 80, writer = 'imagemagick')
 
 	def plotBodies(self):
 		[self.C.getPatches(t)  for t in self.triangles]
@@ -92,8 +107,8 @@ class makeMovie2(makeMovie):
 
 			g_circ_left = self.T.g_circ_left(cur_pose, vel1)
 			self.T.drawSpatialGeneratorFieldLeft(self.ax, cur_pose, g_circ_left)
-			g_circ_right = self.T.g_circ_right(cur_pose, vel1)
-			self.T.drawSpatialGeneratorFieldRight(self.ax, cur_pose, g_circ_right)
+			# g_circ_right = self.T.g_circ_right(cur_pose, vel1)
+			# self.T.drawSpatialGeneratorFieldRight(self.ax, cur_pose, g_circ_right)
 
 			self.TP.add_patch(c_patch)
 			#find local pose given new pose
@@ -175,6 +190,7 @@ if __name__ == '__main__':
 	M = makeMovie2()
 	# M.bodyVelocity()
 	# M.spatialVelocity()
+	M.spatialVelocity_gif()
 	# M.single_triangle_with_velocity()
 	# M.triangle_with_body_velocity()
 	
@@ -187,6 +203,6 @@ if __name__ == '__main__':
 
 
 	# M.triangle_with_body_velocity_animation()
-	M.single_triangle_with_velocity()
+	# M.single_triangle_with_velocity()
 
 	pdb.set_trace()

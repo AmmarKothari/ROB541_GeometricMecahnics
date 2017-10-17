@@ -47,19 +47,24 @@ class canvas(object):
 	def __init__(self,f,ax):
 		self.f, self.ax = f,ax
 		self.patches = []
+		self.patches_old = []
 
 	def getPatches(self, obj, clear=True):
 		self.patches.extend(obj.patches)
 		if clear: obj.patches = []
 	
 	def draw(self):
-		self.ax.clear()
+		# self.ax.clear()
+		[x.remove() for x in self.ax.get_children() if isinstance(x, matplotlib.collections.PatchCollection)]
+		# if isinstance(self.ax.get_children()[2], ):
+		# 	self.ax.get_children()[2].remove()
 		p = PatchCollection(self.patches, alpha=0.4, match_original=True)
 		self.ax.add_collection(p)
 		self.ax.set_xlim(-5, 5)
 		self.ax.set_ylim(-5, 5)
 		self.ax.set_xlabel('X'); self.ax.set_ylabel('Y')
 		self.ax.set_aspect('equal')
+		self.patches_old = self.patches
 		self.patches = []
 
 
@@ -140,11 +145,14 @@ class triangle(object):
 		self.patches.append(center)
 		return center
 
-	def left_action(self, current_pose, global_pose):
+	def left_action(self, current_pose, global_pose, move = True):
 		combined_transformation = np.dot(self.transformation_matrix(global_pose), self.transformation_matrix(current_pose))
 		pose = self.pose_from_transformation_matrix(combined_transformation)
-		c = self.move_to_pose(pose)
-		return c
+		if move:
+			c = self.move_to_pose(pose)
+			return c
+		else:
+			return pose
 
 	def right_action(self, current_pose, relative_pose):
 		combined_transformation = np.dot(self.transformation_matrix(current_pose), self.transformation_matrix(relative_pose))
@@ -250,19 +258,23 @@ class triangle(object):
 		V = copy.deepcopy(Y)
 		for ix,x in enumerate(R):
 			for iy,y in enumerate(R):
-				g_dot = self.g_dot_from_g_circ_left([x,y,g[2]], g_circ_left)
+				# g_dot = self.g_dot_from_g_circ_left([x,y,0], g_circ_left)
+				g_next = self.left_action([x,y,0], g_circ_left, move = False)
+				g_dot = g_next - [x,y,0]
 				U[ix, iy] = g_dot[0]
 				V[ix, iy] = g_dot[1]
 		Q = ax.quiver(X, Y, U, V, units='width')
 		if (U > 0).any() or (V > 0).any():
 			plt.draw()
-			pdb.set_trace()
+			plt.pause(0.01)
 
 	def drawSpatialGeneratorFieldRight(self, ax, g, g_circ_right):
+		[x.remove() for x in self.ax.get_children() if isinstance(x, matplotlib.quiver.Quiver)]
 		R = np.arange(-5,5,0.5)
 		X,Y = np.meshgrid(R, R)
 		U = copy.deepcopy(X)
 		V = copy.deepcopy(Y)
+
 		for ix,x in enumerate(R):
 			for iy,y in enumerate(R):
 				g_dot = self.g_dot_from_g_circ_right([x,y,g[2]], g_circ_right)
