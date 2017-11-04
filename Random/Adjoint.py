@@ -20,14 +20,27 @@ def get_pose(T):
 
 
 
-
+##### Figuring Out What An Adjoint Does ######
 g = T(1,1,pi/2)
 h1 = T(2,2,pi/2)
 h2 = T(2,0,pi/2)
 
 AD_g_h2 = np.dot(np.dot(g,h2),inv(g))
-AD_g_h1 = np.dot(np.dot(inv(g),h1),g)
+AD_g_h1_inv = np.dot(np.dot(inv(g),h1),g)
 h1_g = np.dot(h1,g)
 g_h2 = np.dot(g,h2)
+
+
+###### Using an adjoint with spatial velocity #####
+p1_1 = np.array([1,0,0])
+p1_2 = np.array([0,1,pi/2])
+p2_1 = np.array([2,0,0])
+p2_2 = np.array([0,2,pi/2])
+
+g = T(0,0,pi/2)
+h1 = T(-1,1,pi/2)
+p1_1_h1 = get_pose(np.dot(T(p1_1[0],p1_1[1],p1_1[2]),h1))
+
+
 pdb.set_trace()
 pprint(g)
