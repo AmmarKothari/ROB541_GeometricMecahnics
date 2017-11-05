@@ -48,20 +48,22 @@ class canvas(object):
 		self.f, self.ax = f,ax
 		self.patches = []
 		self.patches_old = []
+		self.set_limits(-5,5)
 
 	def getPatches(self, obj, clear=True):
 		self.patches.extend(obj.patches)
 		if clear: obj.patches = []
+
+	def set_limits(self, low, high):
+		self.low = low
+		self.high = high
 	
 	def draw(self):
-		# self.ax.clear()
 		[x.remove() for x in self.ax.get_children() if isinstance(x, matplotlib.collections.PatchCollection)]
-		# if isinstance(self.ax.get_children()[2], ):
-		# 	self.ax.get_children()[2].remove()
 		p = PatchCollection(self.patches, alpha=0.4, match_original=True)
 		self.ax.add_collection(p)
-		self.ax.set_xlim(-5, 5)
-		self.ax.set_ylim(-5, 5)
+		self.ax.set_xlim(self.low, self.high)
+		self.ax.set_ylim(self.low, self.high)
 		self.ax.set_xlabel('X'); self.ax.set_ylabel('Y')
 		self.ax.set_aspect('equal')
 		self.patches_old = self.patches
@@ -103,7 +105,6 @@ class triangle(object):
 		pose = np.zeros(3)
 		pose[0] = transformation_matrix[0,2]
 		pose[1] = transformation_matrix[1,2]
-		# pose[2] = np.arctan2(transformation_matrix[0,1], transformation_matrix[0,0])
 		pose[2] = np.arctan2(transformation_matrix[1,0], transformation_matrix[0,0])
 		return pose
 
@@ -180,7 +181,8 @@ class triangle(object):
 		theta = g[2]
 		inverse_lifted_action = [ 	[np.cos(theta), np.sin(theta), 0],
 									[-np.sin(theta), np.cos(theta), 0],
-									[0, 0, 1]	]
+									[0, 0, 1]
+								]
 		g_circ_right = np.dot(inverse_lifted_action, np.array(g_dot).reshape(-1,1))
 		return g_circ_right
 
@@ -196,7 +198,7 @@ class triangle(object):
 		lifted_action = [ 	[1, 0, -g[1]	],
 							[0, 1, g[0]		],
 							[0, 0, 1]
-		]
+						]
 		g_dot = np.dot(lifted_action, g_circ_left)
 		return g_dot
 
@@ -211,65 +213,76 @@ class triangle(object):
 		# self.patches.append(rotation_patch)
 		self.patches.append(translation_patch)
 
-	# def spatialGeneratorField(self, g_circ):
-	# 	#should be the same regardless of g_circ right or left?
-	# 	# because initial condition is the identity
-	# 	if g_circ[2] < 1e-10:
-	# 		x_dot = g_circ[0]
-	# 		y_dot = g_circ[1]
-	# 		theta_dot = g_circ[2]
-	# 	else:
-	# 		x_circ = g_circ[0]
-	# 		y_circ = g_circ[1]
-	# 		theta_circ = g_circ[2]
-	# 		lifted_action = np.array([	[np.sin(theta_circ), np.cos(theta_circ) - 1],
-	# 									[1 - np.cos(theta_circ), np.sin(theta_circ)]])
-	# 		circ = np.array([x_circ, y_circ]).reshape(-1,1)
-	# 		out = 1/theta_circ * np.dot(lifted_action, circ)
-	# 		x_dot = out[0]
-	# 		y_dot = out[1]
-	# 		theta_dot = theta_circ
-
-	# 	return [x_dot, y_dot, theta_dot]
-
-	def spatialGeneratorField(self, g, g_circ_left):
+	def gdot_from_groupwisevelocity(self, act_type, g, g_circ):
 		# page 86 of the book
-		theta = g[2]
-		c = np.cos(g[2])
-		s = np.sin(g[2])
-		# left_lifted_action = [	[1,0,-g[1]]
-		# 						[0,1,g[0]]
-		# 						[0,0,1]
-		# 					]
+		# g_dot = g_circ_left * g
+		# g_dot = g * g_circ_right
 
-		left_lifted_action = [	[c,-s,0],
-								[s,c,0],
-								[0,0,1]
-								]
+		gtheta = g[2]
+		gc = np.cos(g[2])
+		gs = np.sin(g[2])
+		gx = g[0]
+		gy = g[1]
+		G = [	[gc, -gs, gx],
+				[gs,  gc, gy],
+				[0,  0, 1]
+			]
+		gcirctheta = g_circ[2]
+		gcircc = np.cos(gcirctheta)
+		gcircs = np.sin(gcirctheta)
+		gcircx = g_circ[0]
+		gcircy = g_circ[1]
+		GCIRC = [	[0, -gcirctheta, gcircx],
+					[gcirctheta, 0, gcircy],
+					[0, 0, 0]
+				]
 
-		g_dot = np.dot(left_lifted_action, g_circ_left)
+		if act_type == 'l':
+			# g_dot = np.dot(GCIRC, G)
+			s = np.sin
+			c = np.cos
+			# g_dot = [	[-s(g[2])*g_circ[2],	-c(g[2])*g_circ[2],		g_circ[0] - g[1]*g_circ[2]	],
+			# 			[c(g[2])*g_circ[2],		-s(g[2])*g_circ[2],		g_circ[1] + g[0]*g_circ[2]	],
+			# 			[0, 					0, 						0]
+			# 		]
+			# g_dot = np.array(g_dot)
+			g_dot = self.g_dot_from_g_circ_left(g, g_circ)
+		if act_type == 'r':
+			g_dot = np.dot(G, GCIRC)
+		# g_dot = self.pose_from_transformation_matrix(g_dot)
 		return g_dot
 
 
-	def drawSpatialGeneratorFieldLeft(self, ax, g, g_circ_left):
+	def spatialGeneratorFieldLeft(self, g, g_circ_left):
+		g_dot = self.gdot_from_groupwisevelocity('l', g, g_circ_left)
+		return g_dot
+
+	def spatialGeneratorFieldRight(self, g, g_circ_right):
+		g_dot = self.gdot_from_groupwisevelocity('r', g, g_circ_right)
+		return g_dot
+
+	def removeQuivers(self, ax):
+		[x.remove() for x in ax.get_children() if isinstance(x, matplotlib.quiver.Quiver)]
+
+	def drawSpatialGeneratorFieldLeft(self, ax, g_circ_left, theta = 0):
+		self.removeQuivers(ax)
 		R = np.arange(-5,5,0.5)
 		X,Y = np.meshgrid(R, R)
 		U = copy.deepcopy(X)
 		V = copy.deepcopy(Y)
 		for ix,x in enumerate(R):
 			for iy,y in enumerate(R):
-				# g_dot = self.g_dot_from_g_circ_left([x,y,0], g_circ_left)
-				g_next = self.left_action([x,y,0], g_circ_left, move = False)
-				g_dot = g_next - [x,y,0]
-				U[ix, iy] = g_dot[0]
-				V[ix, iy] = g_dot[1]
+				g = np.array([x, y, theta])
+				g_dot = self.spatialGeneratorFieldLeft(g, g_circ_left)
+				U[ix, iy] = -g_dot[1]
+				V[ix, iy] = -g_dot[0]
 		Q = ax.quiver(X, Y, U, V, units='width')
 		if (U > 0).any() or (V > 0).any():
 			plt.draw()
 			plt.pause(0.01)
 
 	def drawSpatialGeneratorFieldRight(self, ax, g, g_circ_right):
-		[x.remove() for x in self.ax.get_children() if isinstance(x, matplotlib.quiver.Quiver)]
+		self.removeQuivers(ax)
 		R = np.arange(-5,5,0.5)
 		X,Y = np.meshgrid(R, R)
 		U = copy.deepcopy(X)

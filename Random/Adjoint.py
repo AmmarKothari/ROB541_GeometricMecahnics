@@ -3,7 +3,11 @@ from pprint import pprint
 import pdb
 
 pi = np.pi
-def T(x,y,theta):
+def T(x,y=None,theta=None):
+	if not isinstance(x,int) and len(x) == 3:
+		y = x[1]
+		theta = x[2]
+		x = x[0]
 	T = [[np.cos(theta), -np.sin(theta), x],
 		[np.sin(theta), np.cos(theta), y],
 		[0,0,1]	]
@@ -37,9 +41,13 @@ p1_2 = np.array([0,1,pi/2])
 p2_1 = np.array([2,0,0])
 p2_2 = np.array([0,2,pi/2])
 
-g = T(0,0,pi/2)
+g  = T(0,0,pi/2)
 h1 = T(-1,1,pi/2)
-p1_1_h1 = get_pose(np.dot(T(p1_1[0],p1_1[1],p1_1[2]),h1))
+h = T(1,0,0)
+AD_h_h1_inv = np.dot(np.dot(inv(h),h1),h)
+Tp2_1 = T(p2_1[0], p2_1[1], p2_1[2])
+pprint('p22: %s' %p2_2)
+pprint('p21*AD_h_h1: %s' %get_pose(np.dot(Tp2_1, AD_h_h1_inv)))
 
 
 pdb.set_trace()

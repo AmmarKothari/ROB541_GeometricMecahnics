@@ -2,7 +2,7 @@ import numpy as np
 import pdb
 import matplotlib.pyplot as plt
 from pprint import pprint
-from ROB514_GeometricMechanics.HW1 import canvas, triangle, motion_path, track_path, makeMovie
+from ROB541_GeometricMecahnics.HW1 import canvas, triangle, motion_path, track_path, makeMovie
 from matplotlib.animation import FuncAnimation
 
 
@@ -133,8 +133,10 @@ class makeMovie2(makeMovie):
 		self.ax3 = plt.subplot2grid((2,2), (1,1), colspan=1)
 		self.f = self.ax.get_figure()
 		self.C = canvas(self.f,self.ax)
-		self.C2 = canvas(self.f, self.ax2)	
+		self.C2 = canvas(self.f, self.ax2)
 		self.C3 = canvas(self.f, self.ax3)
+		self.C2.set_limits(-1, 1)
+		self.C3.set_limits(-1, 1)
 		self.T_base1 = triangle()
 		self.T_base2 = triangle()
 		plt.ion()
@@ -150,7 +152,7 @@ class makeMovie2(makeMovie):
 			self.T.drawVelocity(vel1)
 
 			g_circ_left = self.T.g_circ_left(cur_pose, vel1)
-			self.T.drawSpatialGeneratorField(self.ax, cur_pose, g_circ_left)
+			self.T.drawSpatialGeneratorFieldLeft(self.ax, g_circ_left)
 			self.T_base1.move_to_pose([0,0,0])
 			self.T_base1.drawVelocity(body_vel1)
 			self.TP.add_patch(c_patch)
@@ -162,6 +164,7 @@ class makeMovie2(makeMovie):
 			self.T_base2.move_to_pose([0,0,0])
 			self.T_base2.drawVelocity(body_vel2)
 
+			# add patches to plot
 			self.TP.add_patch(c_patch)
 			self.C.getPatches(self.T)
 			self.C.getPatches(self.T2)
@@ -190,16 +193,22 @@ if __name__ == '__main__':
 	M = makeMovie2()
 	# M.bodyVelocity()
 	# M.spatialVelocity()
-	M.spatialVelocity_gif()
+	# M.spatialVelocity_gif()
 	# M.single_triangle_with_velocity()
-	# M.triangle_with_body_velocity()
+	M.triangle_with_body_velocity_gif()
+	# M.triangle_with_body_velocity_animation()
 	
 
-	# T = triangle()
-	# out = T.spatialGeneratorField([1,0,np.pi/2])
-	# ax = plt.subplot(1,1,1)
-	# T.drawSpatialGeneratorField(ax,out)
-	# plt.show()
+	T = triangle()
+	g_dot = [2,2,np.pi/2]
+	g = [1,-1,0]
+	g_circ_left = [1,0,-1]
+	# g_circ_left = T.g_circ_left(g, g_dot)
+	# out = T.spatialGeneratorFieldLeft(g, g_circ_left)
+	# pdb.set_trace()
+	ax = plt.subplot(1,1,1)
+	T.drawSpatialGeneratorFieldLeft(ax, g_circ_left)
+	plt.show()
 
 
 	# M.triangle_with_body_velocity_animation()
