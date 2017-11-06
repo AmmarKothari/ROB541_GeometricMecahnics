@@ -1,1 +1,0 @@
-from HW1 import canvas, triangle, motion_path, track_path, makeMovie
