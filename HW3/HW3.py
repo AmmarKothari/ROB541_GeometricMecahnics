@@ -7,9 +7,13 @@ from itertools import cycle
 from pprint import pprint
 import seaborn as sns
 sns.set(style="whitegrid")
+from matplotlib.animation import FuncAnimation
 # from ROB541_GeometricMechanics.HW1 import triangle
 colors = ['r', 'b', 'g']
 linestyle = cycle(('-', ':', '-.', '--')) 
+
+
+
 class GeoOps(object):
 	@staticmethod
 	def transformation_matrix(transform):
@@ -87,14 +91,6 @@ class GeoOps(object):
 			]
 		return np.array(act)
 
-
-
-class Comprehension(object):
-	def __init__(self):
-		i = 1
-
-
-
 class drawarm(object):
 	def __init__(self):
 		self.ax = plt.subplot(1,1,1)
@@ -107,16 +103,17 @@ class drawarm(object):
 		self.arm = arm
 
 	def draw(self, arm):
-		vs = []
+		# pass in arm object
+		p_prox = arm.poses[:-1]
+		p_dist = arm.poses[1:]
+		p_arrow = arm.arrow_poses
+		vs = arm.vs
 		if self.colors is None:
 			self.colors = cycle(colors[:arm.joint_count])
 		self.removeDrawObjects()
-		# pass in arm object
-		p_prox, p_dist, p_arrow, vs = arm.move()
 		[self.drawLink(p_p,p_d) for p_p,p_d in zip(p_prox,p_dist)]
 		[self.drawArrow(p_a, vel_pt) for p_a,vel_pt in zip(p_arrow,vs)]
 		self.formatPlot()
-		return vs
 
 	def drawLink(self, p_prox, p_dist):
 		self.c = next(self.colors)
@@ -143,9 +140,10 @@ class drawarm(object):
 	def drawArrow(self, p_arrow, v_arrow):
 		self.c = next(self.colors)
 		v_arrow *= self.arrow_scale
-		arrow = plt.Arrow(p_arrow[0], p_arrow[1], v_arrow[0], v_arrow[1], lw = 1, fill=False, width = 0.5, color = self.c)
-		self.ax.add_patch(arrow)
-		self.draw_obj.append(arrow)
+		if abs(v_arrow[0]) > 1e-10 or abs(v_arrow[1]) > 1e-10:
+			arrow = plt.Arrow(p_arrow[0], p_arrow[1], v_arrow[0], v_arrow[1], lw = 1, fill=False, width = 0.5, color = self.c)
+			self.ax.add_patch(arrow)
+			self.draw_obj.append(arrow)
 
 class arm(object):
 	def __init__(self, a_local, h):
@@ -153,10 +151,12 @@ class arm(object):
 		self.a_local = a_local  # joint defined as relative movement to next joint
 		self.h = h # defines the transformations from proximal to distal point
 		self.alpha = np.zeros(self.joint_count)
+		self.alpha_dot = np.zeros(self.joint_count)
 		self.base_pose = np.array([0,0,0])
 		self.poses = self.calc_poses(self.alpha)
 		self.h_arrow = None
 		self.alpha_dot = None
+		self.vs = None
 
 	def set_joints(self, alpha):
 		# set the joint values
@@ -204,9 +204,6 @@ class arm(object):
 		TeRg = GeoOps.right_lifted(poi)
 		J = np.dot(TeRg, J_spatial)
 		v = np.dot(J, self.alpha_dot[0:link_num+1])
-		# if link_num >= 0:
-		# 	pdb.set_trace()
-		# pdb.set_trace()
 		return v
 
 	def calc_Jacobian_spatial(self):
@@ -229,9 +226,10 @@ class arm(object):
 		arrow_poses = self.get_arrowposes()
 		for i in range(self.joint_count):
 			p_prox, p_dist = poses[i:i+2]
-			p_arrow = arrow_poses[i]	
+			p_arrow = arrow_poses[i]
 			vel_pt = self.calc_point_vel(i, self.h_arrow[i])
 			vs.append(copy.deepcopy(vel_pt))
+		self.vs = vs
 		return poses[:-1], poses[1:], arrow_poses, vs
 
 
@@ -270,8 +268,9 @@ class HW3(object):
 			alpha += dt*adot
 			A.set_joints(alpha)
 			A.set_joint_vel(adot)
-			v = D.draw(A)
-			v_all.append(copy.deepcopy(v))
+			p_prox, p_dist, a_poses, vs = A.move()
+			D.draw(A)
+			v_all.append(copy.deepcopy(vs))
 			plt.draw()
 			plt.pause(0.01)
 			t_last = t
@@ -321,7 +320,8 @@ class HW3(object):
 			alpha += dt*adot
 			A.set_joints(alpha)
 			A.set_joint_vel(adot)
-			v = D.draw(A)
+			p_prox, p_dist, a_poses, vs = A.move()
+			D.draw(A)
 			v_all.append(copy.deepcopy(v))
 			plt.draw()
 			plt.pause(0.1)
@@ -372,7 +372,8 @@ class HW3(object):
 			alpha += dt*adot
 			A.set_joints(alpha)
 			A.set_joint_vel(adot)
-			v = D.draw(A)
+			p_prox, p_dist, a_poses, vs = A.move()
+			D.draw(A)
 			v_all.append(copy.deepcopy(v))
 			plt.draw()
 			plt.pause(0.01)
@@ -389,10 +390,75 @@ class HW3(object):
 		pdb.set_trace()
 
 	def RRP_image(self):
-		alpha = [np.pi/2, np.pi/2, 1]
+		alpha = [np.deg2rad(-45), np.deg2rad(135), 2]
 		T = 10
 		time_traj = np.arange(0, T, 0.1)
-		alpha_dot_traj = [np.array([np.pi/100, np.pi/100, np.cos(t)/10]) for t in time_traj]
+		alpha_dot = [0,0,0]
+
+		a1 = np.array([0,0,1]) # rotary
+		h1 = np.array([2,0,0])
+		h1_mp = h1/2
+
+		a2 = np.array([0,0,1]) # rotary
+		h2 = np.array([1,0,0])
+		h2_mp = h2/2
+
+		a3 = np.array([1,0,0]) # prismatic
+		h3 = np.array([alpha[2],0,0])
+		h3_mp = h3/2
+
+		a = np.vstack((a1, a2, a3))
+		h = np.vstack((h1, h2, h3))
+		h_mp = np.vstack((h1_mp, h2_mp, h3_mp))
+		A = arm(a, h)
+		A.set_joints(alpha)
+		A.set_arrow_points(h_mp)
+		A.set_joint_vel(alpha_dot)
+		D = drawarm()
+		A.move()
+		D.draw(A)
+		D.ax.set_title('RRP Configuration')
+		D.ax.get_figure().savefig('RRP.png')
+		plt.close(D.ax.get_figure())
+
+	def RPR_image(self):
+		alpha = [np.deg2rad(30), 0.5, np.deg2rad(135)]
+		T = 10
+		time_traj = np.arange(0, T, 0.1)
+		alpha_dot = [0,0,0]
+
+		a1 = np.array([0,0,1]) # rotary
+		h1 = np.array([2,0,0])
+		h1_mp = h1/2
+
+		a2 = np.array([1,0,0]) # prismatic
+		h2 = np.array([alpha[1],0,0])
+		h2_mp = h2/2
+
+		a3 = np.array([0,0,1]) # rotary
+		h3 = np.array([1,0,0])
+		h3_mp = h3/2
+
+		a = np.vstack((a1, a2, a3))
+		h = np.vstack((h1, h2, h3))
+		h_mp = np.vstack((h1_mp, h2_mp, h3_mp))
+		A = arm(a, h)
+		A.set_joints(alpha)
+		A.set_arrow_points(h_mp)
+		A.set_joint_vel(alpha_dot)
+		D = drawarm()
+		A.move()
+		D.draw(A)
+		D.ax.set_title('RPR Configuration')
+		D.ax.get_figure().savefig('RPR.png')
+		plt.close(D.ax.get_figure())
+
+	def RRP_animation(self):
+		alpha = [0, np.pi, 1]
+		T = 10
+		time_traj = np.arange(0, T, 0.1)
+		alpha_dot_traj = np.array([np.array([np.pi/5, -np.pi/5, np.cos(t)/10]) for t in time_traj])
+		alpha_dot_traj[-int(len(time_traj)/2):,2] *= -1
 		traj = zip(time_traj, alpha_dot_traj)
 
 		a1 = np.array([0,0,1]) # rotary
@@ -414,12 +480,68 @@ class HW3(object):
 		A.set_joints(alpha)
 		A.set_arrow_points(h_mp)
 		D = drawarm()
-		A.calc_arrowposes()
-		# pdb.set_trace()
-		A.set_joint_vel(alpha_dot_traj[0])
+		t_last = 0.0
+		for t, adot in traj:
+			dt = t-t_last
+			alpha += dt*adot
+			A.set_joints(alpha)
+			A.set_joint_vel(adot)
+			A.move()
+			D.draw(A)
+			plt.draw()
+			t_last = t
+			yield D.ax.get_figure()
 
-		D.draw(A)
-		D.ax.get_figure().savefig('RRP.png')
+	def RPR_animation(self):
+		alpha = [0, 1,  0]
+		T = 10
+		time_traj = np.arange(0, T, 0.1)
+		alpha_dot_traj = np.array([np.array([np.pi/5, 0.25,  np.pi]) for t in time_traj])
+		alpha_dot_traj[-int(len(time_traj)/2):,1] *= -1
+		traj = zip(time_traj, alpha_dot_traj)
+
+		a1 = np.array([0,0,1]) # rotary
+		h1 = np.array([2,0,0])
+		h1_mp = h1/2
+
+		a2 = np.array([1,0,0]) # prismatic
+		h2 = np.array([alpha[1],0,0])
+		h2_mp = h2/2
+
+		a3 = np.array([0,0,1]) # rotary
+		h3 = np.array([1,0,0])
+		h3_mp = h3/2
+
+		a = np.vstack((a1, a2, a3))
+		h = np.vstack((h1, h2, h3))
+		h_mp = np.vstack((h1_mp, h2_mp, h3_mp))
+		A = arm(a, h)
+		A.set_joints(alpha)
+		A.set_arrow_points(h_mp)
+		D = drawarm()
+		t_last = 0.0
+		for t, adot in traj:
+			dt = t-t_last
+			alpha += dt*adot
+			A.set_joints(alpha)
+			A.set_joint_vel(adot)
+			A.move()
+			D.draw(A)
+			D.ax.set_xlim(-8,8)
+			D.ax.set_ylim(-8,8)
+			plt.draw()
+			t_last = t
+			yield D.ax.get_figure()
+
+	def record_gif(self, gen_func, savefn):
+		gen = gen_func()
+		frame_func = lambda t: next(gen)
+		ax = plt.subplot(1,1,1)
+		f = ax.get_figure()
+		animation = FuncAnimation(f, frame_func, frames = np.arange(0,10,0.1), interval = 200)
+		animation.save(savefn + '.gif', dpi = 80, writer = 'imagemagick')
+
+
 
 
 
@@ -434,8 +556,11 @@ if __name__ == '__main__':
 	hw3 = HW3()
 	# hw3.RR_test()
 	# hw3.RRP_test()
-	hw3.RPR_test()
-
+	# hw3.RPR_test()
+	# hw3.RRP_image()
+	# hw3.RPR_image()
+	hw3.record_gif(hw3.RRP_animation, 'RRP')
+	hw3.record_gif(hw3.RPR_animation, 'RPR')
 
 	# alpha = [np.pi/2, np.pi/2, 1]
 
