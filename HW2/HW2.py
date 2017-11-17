@@ -2,7 +2,10 @@ import numpy as np
 import pdb
 import matplotlib.pyplot as plt
 from pprint import pprint
-from ROB541_GeometricMechanics.HW1 import canvas, triangle, motion_path, track_path, makeMovie
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/HW1')
+from HW1 import canvas, triangle, motion_path, track_path, makeMovie
 from matplotlib.animation import FuncAnimation
 
 
