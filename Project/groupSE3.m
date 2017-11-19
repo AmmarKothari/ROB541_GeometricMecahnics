@@ -1,16 +1,23 @@
-function T = groupSE3(pose)
-    gamma = pose(1);
-    beta = pose(2);
-    alpha = pose(3);
-    x = pose(4);
-    y = pose(5);
-    z = pose(6);
+function T = groupSE3(pose, inv)
+    if nargin < 2
+        inv = 'n';
+    end
+    x = pose(1);
+    y = pose(2);
+    z = pose(3);
+    gamma = pose(4);
+    beta = pose(5);
+    alpha = pose(6);
     
 	Rx = RotX(gamma);
 	Ry = RotY(beta);
 	Rz = RotZ(alpha);
 	t = Tl(x, y, z);
-% 	T = t.dot(Rz).dot(Ry).dot(Rx);
+    if inv == 'y'
+        T = Rx* Ry * Rz * t;
+    else
+        T = t * Rz * Ry * Rx;
+    end
 end
 
 function Rx = RotX(gamma)
@@ -53,7 +60,7 @@ function T = Tl(x,y,z)
 	0,	0,	1,	z;
 	0,	0,	0,	1;
 	];
-
+end
 
 
 
