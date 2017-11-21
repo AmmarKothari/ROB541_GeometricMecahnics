@@ -42,7 +42,7 @@ class GeoOps(object):
 	def inverse_action(cls, pose):
 		# undoing a transform = undoing translation and then undoing rotation
 		transl_inv = cls.transformation_matrix([-pose[0], -pose[1], 0])
-		rot_inv = cls.transformation_matrix([0,0,pose[2]])
+		rot_inv = cls.transformation_matrix([0,0,-pose[2]])
 		T = np.dot(transl_inv, rot_inv)
 		p = cls.pose_from_transformation_matrix(T)
 		return p

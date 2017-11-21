@@ -3,9 +3,8 @@ function out = inverseGroup(pose)
     if size(pose) == [4,4]
         pose = poseFromMatrix(pose);
     end
-    % page 37 in sastry
-    group_inv = groupSE3(-pose, 'y');
-%     pose_inv = poseFromMatrix(group_inv);
+    group_inv = groupSE3(pose, 'y');
+%     pose_inv = poseFromMatrix(group_inv); % this doesn't work right
     out = group_inv;
 
 end

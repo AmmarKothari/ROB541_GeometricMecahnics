@@ -14,7 +14,13 @@ function T = groupSE3(pose, inv)
 	Rz = RotZ(alpha);
 	t = Tl(x, y, z);
     if inv == 'y'
-        T = Rx* Ry * Rz * t;
+        % this is the version from Murray Li and Sastry
+        % weirdness happens when alpha = pi/2
+%         R = Rz * Ry * Rx;
+%         p = -R.'*[x;y;z;-1];
+%         T = R.';
+%         T(:,4) = p;
+        T = RotX(-gamma) * RotY(-beta) * RotZ(-alpha) * Tl(-x,-y,-z);
     else
         T = t * Rz * Ry * Rx;
     end
