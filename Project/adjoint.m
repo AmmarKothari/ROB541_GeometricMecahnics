@@ -1,5 +1,4 @@
-function adjoint(g)
+function out = adjoint(g)
     g = poseCheck(g);
-    adj = RightLiftedActionInv(g) * LeftLiftedAction(g);
-
+    out = RightLiftedActionInv(g) * LeftLiftedAction(g);
 end

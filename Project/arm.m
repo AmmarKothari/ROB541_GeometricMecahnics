@@ -1,6 +1,7 @@
 classdef arm
     properties
         links
+        J_spatial
     end
     
     methods
@@ -21,6 +22,15 @@ classdef arm
                 obj.links(i) = obj.links(i).linkPos(alphas(i));
             end
         end
+        function J_spatial = calc_Jacobian_spatial(obj)
+            % calcualtes the jacobian using the spatial approach
+            J_spatial = [];
+            for j = 1:length(obj.links)
+                adj_g = adjoint(obj.links(j).pose) * obj.links(j).a;
+                J_spatial = [J_spatial, adj_g.'];
+            end
+        end
+        
         function obj = drawArm(obj, ax)
             for i = 1:length(obj.links)
                 obj.links(i).drawLink(ax);

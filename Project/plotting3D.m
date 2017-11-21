@@ -35,3 +35,24 @@ for i = 0:0.1:pi
     pause(0.25)
     cla(ax)
 end
+
+%%
+% close(figure(1));
+% f = figure(1);
+% ax = axes(f);
+a1 = [0,0,0,0,0,1]; % rotation around z
+h1 = [0,0,1,0,0,0]; % extending in z
+a2 = [0,0,0,1,0,0]; % rotation around x
+h2 = [1,0,0,0,0,0]; % extending in x
+a3 = [0,0,0,0,1,0]; % rotation around y
+h3 = [0,0,1,0,0,0]; % extending in z
+l1 = link(a1, h1,'b');
+l2 = link(a2, h2,'r');
+l3 = link(a3, h3,'g');
+
+A = arm([l1, l2, l3]);
+view(45,45)
+set(gca,'XLim',[-3 3],'YLim',[-3 3],'ZLim',[-3 3])
+xlabel('x'); ylabel('y'); zlabel('z')
+
+A.J_spatial()

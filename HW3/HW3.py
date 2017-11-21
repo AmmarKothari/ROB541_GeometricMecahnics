@@ -150,12 +150,11 @@ class arm(object):
 		self.joint_count = len(a_local)
 		self.a_local = a_local  # joint defined as relative movement to next joint
 		self.h = h # defines the transformations from proximal to distal point
-		self.alpha = np.zeros(self.joint_count)
-		self.alpha_dot = np.zeros(self.joint_count)
-		self.base_pose = np.array([0,0,0])
-		self.poses = self.calc_poses(self.alpha)
+		self.alpha = np.zeros(self.joint_count) # joint positions
+		self.alpha_dot = None # joint velocity
+		self.base_pose = np.array([0,0,0]) # location of base of robot
+		self.poses = self.calc_poses(self.alpha) # pose in world space
 		self.h_arrow = None
-		self.alpha_dot = None
 		self.vs = None
 
 	def set_joints(self, alpha):
