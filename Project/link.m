@@ -1,6 +1,7 @@
 classdef link
     properties
         h
+        h_poi
         a
         order
         pose
@@ -11,8 +12,9 @@ classdef link
     end
     
     methods
-        function obj = link(a, h, c)
+        function obj = link(a, h, c, h_poi)
             obj.h = h;
+            obj.h_poi = h_poi;
             obj.a = a;
             obj.pose = [0,0,0,0,0,0];
             obj.zero_pose = [0,0,0,0,0,0];

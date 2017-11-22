@@ -1,4 +1,4 @@
-function out = LiftedAction(side, g, inv)
+function out = LiftedAction(side, g, inverse)
     syms x_delta y_delta z_delta gamma_delta beta_delta alpha_delta
     syms x_zero y_zero z_zero gamma_zero beta_zero alpha_zero
     P_delta = [x_delta, y_delta, z_delta, gamma_delta, beta_delta, alpha_delta];
@@ -29,7 +29,7 @@ function out = LiftedAction(side, g, inv)
     end
     
     % check inverse
-    if inv == 'y'
+    if inverse == 'y'
         out = inv(out);
     end
 end

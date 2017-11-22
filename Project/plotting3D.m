@@ -46,13 +46,33 @@ a2 = [0,0,0,1,0,0]; % rotation around x
 h2 = [1,0,0,0,0,0]; % extending in x
 a3 = [0,0,0,0,1,0]; % rotation around y
 h3 = [0,0,1,0,0,0]; % extending in z
-l1 = link(a1, h1,'b');
-l2 = link(a2, h2,'r');
-l3 = link(a3, h3,'g');
+l1 = link(a1, h1,'b', h1);
+l2 = link(a2, h2,'r', h2);
+l3 = link(a3, h3,'g', h3);
 
 A = arm([l1, l2, l3]);
-view(45,45)
-set(gca,'XLim',[-3 3],'YLim',[-3 3],'ZLim',[-3 3])
-xlabel('x'); ylabel('y'); zlabel('z')
+% view(45,45)
+% set(gca,'XLim',[-3 3],'YLim',[-3 3],'ZLim',[-3 3])
+% xlabel('x'); ylabel('y'); zlabel('z')
 
-A.J_spatial()
+time_traj = 0:0.1:10;
+alpha_dot_traj = zeros(length(time_traj), length(A.links));
+for i = 1:length(time_traj)
+    alpha_dot_traj(i,:) = [pi/5, 0, 0];
+end
+t_old = 0;
+joint_alpha = [0; 0; 0];
+for i = 1:length(time_traj)
+    t = time_traj(i,:);
+    alpha_dot = alpha_dot_traj(i);
+    dt = t - t_old;
+    joint_alpha = joint_alpha + dt * alpha_dot;
+    A = A.set_joints(joint_alpha);
+    A = A.set_joint_vel(alpha_dot);
+    A = A.calc_poses();
+    A.move()
+    
+    t_old = t;
+    pause(0.1);
+end
+% A.J_spatial()
