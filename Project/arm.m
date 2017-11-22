@@ -37,7 +37,6 @@ classdef arm
             % calcualtes the jacobian using the spatial approach
             J_spatial = [];
             for j = 1:length(obj.links)
-                disp(j)
                 adj_g = adjoint(obj.links(j).pose) * obj.links(j).a.';
                 J_spatial = [J_spatial, adj_g];
             end
@@ -62,12 +61,12 @@ classdef arm
             % link number should start at 1
             J_spatial_all = obj.calc_Jacobian_spatial(); % full jacobian
             J_spatial = J_spatial_all(:, 1:link_num); % relevant jacobian
-            p = obj.links(link_num+1).pose; % pose of base of link?
+            p = obj.links(link_num).pose; % pose of base of link?
             % below isn't done in the best way
             poi = rightAction(p, inverseGroup(h_poi)); % find the point we are interested in
             TeRg = RightLiftedAction(poi);
             J = TeRg * J_spatial; % transform into world Jacobian
-            vel_pt = J * obj.alpha_dot(1:link_num); % get world velocity from joint angle velocities
+            vel_pt = J * obj.alpha_dot(1:link_num).'; % get world velocity from joint angle velocities
         end
         
         function obj = move(obj)
@@ -76,7 +75,7 @@ classdef arm
             for i = 1:length(obj.links)
                 p_prox = poses(i,:);
                 p_dist = poses(i+1,:);
-                vel_pt = double(obj.calc_point_vel(i, obj.links(i).h_poi));
+                vel_pt = double(obj.calc_point_vel(i, obj.links(i).h_poi)).';
                 vs = [vs; vel_pt];
             end
             obj.vs = vs;
@@ -93,6 +92,13 @@ classdef arm
         function obj = drawArm(obj, ax)
             for i = 1:length(obj.links)
                 obj.links(i).drawLink(ax);
+            end
+        end
+        
+        function obj = drawArrows(obj, ax)
+            for i = 1:length(obj.links)
+                obj.links(i).drawArrow(ax, obj.vs(i,:));
+                obj.links(i).drawArrow(ax, [0, 1, 2]);
             end
         end
         

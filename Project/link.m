@@ -46,6 +46,13 @@ classdef link
         function obj = drawDistalPose(obj, ax)
             plotPose(ax, obj.distal, 1);
         end
+        
+        function obj = drawArrow(obj, ax, arrow_params)
+            poi = poseFromMatrix(rightAction(obj.pose, obj.h_poi));
+            hold on;
+            quiver3(ax, poi(1), poi(2), poi(3), arrow_params(1), arrow_params(2), arrow_params(3));
+            hold off;
+        end
     end
     
     
