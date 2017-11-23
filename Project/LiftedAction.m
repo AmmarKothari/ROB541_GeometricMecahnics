@@ -6,9 +6,9 @@ function out = LiftedAction(side, g, inverse)
     g_delta = groupSE3(P_delta);
     g_zero  = groupSE3(P_zero);
     if side == 'r'
-        p_g_delta_g_zero = poseFromMatrix(rightAction(g_delta, g_zero));
+        p_g_delta_g_zero = poseFromMatrix(rightAction(g_zero, g_delta));
     elseif side == 'l'
-        p_g_delta_g_zero = poseFromMatrix(leftAction(g_delta, g_zero));
+        p_g_delta_g_zero = poseFromMatrix(leftAction(g_zero, g_delta));
     end
     d_g_delta_g_zero = [];
     % d(g_delta * g_zero)/d(g_zero)
@@ -24,6 +24,7 @@ function out = LiftedAction(side, g, inverse)
 
     % evaluate g_delta at g
     out = d_g_delta_g_zero;
+    g = poseCheck(g);
     for i = 1:length(P_delta)
         out = subs(out, P_delta(i), g(i));
     end
