@@ -1,10 +1,14 @@
 classdef arm
+    % poses should be horizontal
+    % covectors (velocity) should be vertical
+    % shouldn't mater really because everything should be done on groups
     properties
         links
         alpha_dot
         alpha
         base_pose
         vs
+        acc_norm_max
     end
     
     methods
@@ -13,6 +17,7 @@ classdef arm
             obj.alpha_dot = zeros(length(links), 1);
             obj.alpha = zeros(length(links), 1);
             obj.base_pose = zeros(1,6);
+            obj.acc_norm_max = 100;
         end
         function obj = addlink(obj,link)
             obj.links = [obj.links, link];
@@ -37,7 +42,7 @@ classdef arm
             % calcualtes the jacobian using the spatial approach
             J_spatial = [];
             for j = 1:length(obj.links)
-                adj_g = adjoint(obj.links(j).pose) * obj.links(j).a.';
+                adj_g = group_adjoint(obj.links(j).pose) * obj.links(j).a.';
                 J_spatial = [J_spatial, adj_g];
             end
         end
@@ -68,7 +73,42 @@ classdef arm
             vel_pt = J * obj.alpha_dot(1:link_num).'; % get world velocity from joint angle velocities
         end
         
-        function obj = move(obj)
+        function ddtheta = JacobianPsuedoInverse(obj, ds, J)
+            ddtheta = JacobianPsuedoInverse(ds, J);
+        end
+        
+        function obj = JPIController(obj, ds, h_poi, dt)
+            link_num = length(obj.links);
+            J_spatial_all = obj.calc_Jacobian_spatial(); % full jacobian
+            p = obj.links(link_num).pose; % world pose of base of link
+            poi = rightAction(p, h_poi); % find the point we are interested in
+            TeRg = RightLiftedAction(poi);
+            J = TeRg * J_spatial_all; % transform into world Jacobian
+            
+            % desired acceleration
+            ddtheta = obj.JacobianPsuedoInverse(ds,J);
+            ddtheta_clamped = obj.accelerationLimit(ddtheta, obj.acc_norm_max);
+            
+            % run system forward one time step
+            obj = obj.dynamics(ddtheta_clamped.', dt);
+        end
+        
+        function obj = dynamics(obj, ddtheta, dt)
+            obj.alpha_dot = obj.alpha_dot + ddtheta * dt;
+            obj.alpha = obj.alpha + obj.alpha_dot * dt;
+            obj = obj.calc_poses();
+            obj = obj.calc_vels();
+        end
+        
+        function ddtheta = accelerationLimit(obj, ddtheta, acc_max)
+            % clamp norm to a max value
+            if norm(ddtheta) > acc_max
+                ddtheta = ddtheta / norm(ddtheta) * acc_max;
+            end
+        end
+        
+        function obj = calc_vels(obj)
+            % calculates velocities for the current alpha and alpha_dot
             vs = [];
             for i = 1:length(obj.links)
                 p_prox = obj.links(i).pose;
