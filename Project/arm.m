@@ -86,8 +86,10 @@ classdef arm
             J = TeRg * J_spatial_all; % transform into world Jacobian
             
             % desired acceleration
-            ddtheta = obj.JacobianPsuedoInverse(ds,J);
-            ddtheta_clamped = obj.accelerationLimit(ddtheta, obj.acc_norm_max);
+            K = 1000;
+            ddtheta = double(obj.JacobianPsuedoInverse(ds,J));
+            ddtheta_control = K*ddtheta;
+            ddtheta_clamped = obj.accelerationLimit(ddtheta_control, obj.acc_norm_max);
             
             % run system forward one time step
             obj = obj.dynamics(ddtheta_clamped.', dt);

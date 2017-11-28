@@ -10,11 +10,15 @@ function out = LiftedAction(side, g, inverse)
     elseif side == 'l'
         p_g_delta_g_zero = poseFromMatrix(leftAction(g_zero, g_delta));
     end
-    d_g_delta_g_zero = [];
+    d = length(p_g_delta_g_zero);
+    d_g_delta_g_zero = sym('BLAH', [d,d]);
     % d(g_delta * g_zero)/d(g_zero)
     for i = 1:length(P_delta)
         out = diff(p_g_delta_g_zero, P_zero(i)) ;
-        d_g_delta_g_zero = [d_g_delta_g_zero, transpose(out)];
+        d_g_delta_g_zero(:,i) = transpose(out);
+%         for i2 = 1:length(out)
+%             d_g_delta_g_zero(i, i2) = out(i2);
+%         end
     end
     
     % evaluate g_zero at the identity (which is [0,0,0,0,0,0])

@@ -137,7 +137,8 @@ travel_path = SpiralPath(0:0.1:4*pi, 2, 1);
 i = 1;
 EE_pose = A.links(end).distal.';
 while i <=length(travel_path)
-    s = travel_path(i, :);
+%     s = travel_path(i, :);
+    s = [1.1, 0, 1.9, 0, 0, 0];
     ds = moveToEndEffector(s, EE_pose).';
     % calculates Jacobianfigures out control value
     % and sends that value (probably want to split this up a bit)
@@ -152,5 +153,10 @@ while i <=length(travel_path)
         d = EE_pose(1:3) - s(1:3);
         sprintf('Point %d Distance: %0.2f %0.2f %0.2f', i, d(1), d(2), d(3))
     end
+    
+    A.drawArm(ax);
+    A.drawArrows(ax);
+    plotPose(ax, s, 0.5);
+    pause(0.1);
 end
 
