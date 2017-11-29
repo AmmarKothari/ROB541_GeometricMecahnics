@@ -1,5 +1,5 @@
 function out = poseFromMatrix(group)
-    group = real(group); % for some reason it starts looking at imaginary values
+%     group = real(group); % for some reason it starts looking at imaginary values
 	x = group(1,4);
 	y = group(2,4);
 	z = group(3,4);

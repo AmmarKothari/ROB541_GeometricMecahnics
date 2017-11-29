@@ -9,6 +9,8 @@ classdef arm
         base_pose
         vs
         acc_norm_max
+        vel_max
+        dist_max
     end
     
     methods
@@ -17,12 +19,21 @@ classdef arm
             obj.alpha_dot = zeros(length(links), 1);
             obj.alpha = zeros(length(links), 1);
             obj.base_pose = zeros(1,6);
-            obj.acc_norm_max = 100;
+            obj.acc_norm_max = 10;
+            obj.vel_max = 1;
+            obj.dist_max = 0.1;
         end
         function obj = addlink(obj,link)
             obj.links = [obj.links, link];
             obj.alpha_dot = [obj.alpha_dot; 0];
             obj.alpha = [obj.alpha; 0];
+        end
+        function poses = get_poses(obj)
+            poses = zeros(length(obj.links)+1, 6);
+            poses(1,:) = obj.base_pose; % add in the location of the base to list
+            for i = 1:length(obj.links)
+                poses(i,:) = obj.links(i).pose;
+            end
         end
         function obj = calc_poses(obj, alphas)
             if nargin < 2
@@ -53,14 +64,6 @@ classdef arm
             J = TeRg * J_spatial;
         end
         
-        function poses = get_poses(obj)
-            poses = zeros(length(obj.links)+1, 6);
-            poses(1,:) = obj.base_pose; % add in the location of the base to list
-            for i = 1:length(obj.links)
-                poses(i,:) = obj.links(i).pose;
-            end
-        end
-        
         function vel_pt = calc_point_vel(obj, link_num, h_poi)
             % calculates the world velocity at a point on a link
             % link number should start at 1
@@ -78,6 +81,7 @@ classdef arm
         end
         
         function obj = JPIController(obj, ds, h_poi, dt)
+            ds_clamped = obj.distanceLimit(ds, obj.dist_max);
             link_num = length(obj.links);
             J_spatial_all = obj.calc_Jacobian_spatial(); % full jacobian
             p = obj.links(link_num).pose; % world pose of base of link
@@ -86,8 +90,8 @@ classdef arm
             J = TeRg * J_spatial_all; % transform into world Jacobian
             
             % desired acceleration
-            K = 1000;
-            ddtheta = double(obj.JacobianPsuedoInverse(ds,J));
+            K = 1;
+            ddtheta = double(obj.JacobianPsuedoInverse(ds_clamped,J));
             ddtheta_control = K*ddtheta;
             ddtheta_clamped = obj.accelerationLimit(ddtheta_control, obj.acc_norm_max);
             
@@ -106,6 +110,12 @@ classdef arm
             % clamp norm to a max value
             if norm(ddtheta) > acc_max
                 ddtheta = ddtheta / norm(ddtheta) * acc_max;
+            end
+        end
+        
+        function ds_clamped = distanceLimit(obj, ds, dist_max)
+            if norm(ds) > dist_max
+                ds_clamped = ds / norm(ds) * dist_max;
             end
         end
         

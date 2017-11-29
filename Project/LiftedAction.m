@@ -1,38 +1,109 @@
 function out = LiftedAction(side, g, inverse)
-    syms x_delta y_delta z_delta gamma_delta beta_delta alpha_delta
-    syms x_zero y_zero z_zero gamma_zero beta_zero alpha_zero
-    P_delta = [x_delta, y_delta, z_delta, gamma_delta, beta_delta, alpha_delta];
-    P_zero  = [x_zero, y_zero, z_zero, gamma_zero, beta_zero, alpha_zero];
-    g_delta = groupSE3(P_delta);
-    g_zero  = groupSE3(P_zero);
-    if side == 'r'
-        p_g_delta_g_zero = poseFromMatrix(rightAction(g_zero, g_delta));
-    elseif side == 'l'
-        p_g_delta_g_zero = poseFromMatrix(leftAction(g_zero, g_delta));
-    end
-    d = length(p_g_delta_g_zero);
-    d_g_delta_g_zero = sym('BLAH', [d,d]);
-    % d(g_delta * g_zero)/d(g_zero)
-    for i = 1:length(P_delta)
-        out = diff(p_g_delta_g_zero, P_zero(i)) ;
-        d_g_delta_g_zero(:,i) = transpose(out);
-%         for i2 = 1:length(out)
-%             d_g_delta_g_zero(i, i2) = out(i2);
-%         end
-    end
-    
-    % evaluate g_zero at the identity (which is [0,0,0,0,0,0])
-    for i = [x_zero y_zero z_zero gamma_zero beta_zero alpha_zero]
-        d_g_delta_g_zero = subs(d_g_delta_g_zero, i, 0);
-    end
+%     syms x_delta y_delta z_delta g(4) g(5) g(6)
+%     P_delta = [x_delta, y_delta, z_delta, g(4), g(5), g(6)];
 
-    % evaluate g_delta at g
-    out = d_g_delta_g_zero;
-    g = poseCheck(g);
-    for i = 1:length(P_delta)
-        out = subs(out, P_delta(i), g(i));
+    if side == 'r'
+        fname = 'RightLiftedAction.mat';
+    elseif side == 'l'
+        fname = 'LeftLiftedAction.mat';
     end
+    % evaluate g_delta at g
+    g = poseCheck(g);
+    out = eye(6);
+    if side == 'r'
+        out(1,1) = 1;
+        out(1,2) = 0;
+        out(1,3) = 0;
+        out(1,4) = 0;
+        out(1,5) = g(3);
+        out(1,6) = -g(2);
+        
+        out(2,1) = 0;
+        out(2,2) = 1;
+        out(2,3) = 0;
+        out(2,4) = -g(3);
+        out(2,5) = 0;
+        out(2,6) = g(1);
+        
+        out(3,1) = 0;
+        out(3,2) = 0;
+        out(3,3) = 1;
+        out(3,4) = g(2);
+        out(3,5) = -g(1);
+        out(3,6) = 0;
+        
+        out(4,1) = 0;
+        out(4,2) = 0;
+        out(4,3) = 0;
+        out(4,4) = ( ...
+                    (cos(g(5))*cos(g(4)))^2* ...
+                    ( ...
+                        (real(sin(g(6))*sin(g(5))*sin(g(4))) + real(cos(g(6))*cos(g(4)))) ...
+            / ...
+            real(cos(g(5))*cos(g(4)))-  ...
+            (real(cos(g(5))*sin(g(4)))*(real(cos(g(4))*sin(g(6))*sin(g(5))) - real(cos(g(6))*sin(g(4))))) ...
+            /real(cos(g(5))*cos(g(4)))^2))/(real(cos(g(5))*cos(g(4)))^2 + real(cos(g(5))*sin(g(4)))^2);
+        out(4,5) = -(real(cos(g(5))*cos(g(4)))^2*((real(cos(g(6))*sin(g(5))*sin(g(4))) - real(cos(g(4))*sin(g(6))))/real(cos(g(5))*cos(g(4))) - (real(cos(g(5))*sin(g(4)))*(real(cos(g(6))*cos(g(4))*sin(g(5))) + real(sin(g(6))*sin(g(4)))))/real(cos(g(5))*cos(g(4)))^2))/(real(cos(g(5))*cos(g(4)))^2 + real(cos(g(5))*sin(g(4)))^2);
+        out(4,6) = 0;
+        
+        out(5,1) = 0;
+        out(5,2) = 0;
+        out(5,3) = 0;
+        out(5,4) = -(((real(cos(g(5))*sin(g(6))) - (imag(sin(g(5)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (imag(sin(g(5)))*imag(cos(g(6))*cos(g(5))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) - (real(sin(g(5)))*imag(cos(g(5))*sin(g(6))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (imag(cos(g(5))*sin(g(6)))*sign(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)*sin(g(5))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6))))*1i)/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)^2 + (imag(cos(g(6))*cos(g(5)))*sign(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)*sin(g(5))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))*1i)/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)^2)/(- imag(sin(g(5))) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)) + ((real(sin(g(5))) + (imag(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (imag(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))*(imag(cos(g(5))*sin(g(6))) + (real(sin(g(5)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) - (imag(sin(g(5)))*real(cos(g(6))*cos(g(5))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(sin(g(5)))*real(cos(g(5))*sin(g(6))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) - (real(cos(g(5))*sin(g(6)))*sign(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)*sin(g(5))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6))))*1i)/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)^2 - (real(cos(g(6))*cos(g(5)))*sign(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)*sin(g(5))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))*1i)/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)^2))/(- imag(sin(g(5))) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))^2)*(- imag(sin(g(5))) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))^2)/((real(sin(g(5))) + (imag(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (imag(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))^2 + (- imag(sin(g(5))) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))^2);
+        out(5,5) = (((real(cos(g(6))*cos(g(5))) - (real(sin(g(5)))*imag(cos(g(6))*cos(g(5))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) - (imag(sin(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) - (imag(sin(g(5)))*imag(cos(g(5))*sin(g(6))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (imag(cos(g(5))*sin(g(6)))*sign(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)*sin(g(5))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)^2 + (imag(cos(g(6))*cos(g(5)))*sign(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)*sin(g(5))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)^2)/(- imag(sin(g(5))) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)) + ((real(sin(g(5))) + (imag(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (imag(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))*(imag(cos(g(6))*cos(g(5))) + (real(sin(g(5)))*real(cos(g(6))*cos(g(5))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(sin(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (imag(sin(g(5)))*real(cos(g(5))*sin(g(6))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) - (real(cos(g(5))*sin(g(6)))*sign(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)*sin(g(5))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)^2 - (real(cos(g(6))*cos(g(5)))*sign(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)*sin(g(5))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)^2))/(- imag(sin(g(5))) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))^2)*(- imag(sin(g(5))) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))^2)/((real(sin(g(5))) + (imag(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (imag(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))^2 + (- imag(sin(g(5))) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))^2);
+        out(5,6) = -((((imag(cos(g(5))*sin(g(6)))*sign(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)*(cos(g(6))*cos(g(5))*1i - cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)^2 + (imag(cos(g(6))*cos(g(5)))*sign(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))*(cos(g(6))*cos(g(5))*1i - cos(g(5))*sin(g(6))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)^2)/(- imag(sin(g(5))) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)) - (((real(cos(g(5))*sin(g(6)))*sign(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)*(cos(g(6))*cos(g(5))*1i - cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)^2 + (real(cos(g(6))*cos(g(5)))*sign(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))*(cos(g(6))*cos(g(5))*1i - cos(g(5))*sin(g(6))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)^2)*(real(sin(g(5))) + (imag(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (imag(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)))/(- imag(sin(g(5))) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))^2)*(- imag(sin(g(5))) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))^2)/((real(sin(g(5))) + (imag(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (imag(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))^2 + (- imag(sin(g(5))) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))^2);
+        
+        out(6,1) = 0;
+        out(6,2) = 0;
+        out(6,3) = 0;
+        out(6,4) = ((real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))^2*(real(sin(g(5)))/(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))) + (imag(sin(g(5)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))^2))/((imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6))))^2 + (real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))^2);
+        out(6,5) = -((real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))^2*(imag(sin(g(5)))/(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))) - (real(sin(g(5)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))^2))/((imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6))))^2 + (real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))^2);
+        out(6,6) = ((real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))^2*((imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6))))^2/(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))^2 + 1))/((imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6))))^2 + (real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))^2);
     
+    elseif side == 'l'
+        out(1,1) = cos(g(6))*cos(g(5));
+        out(1,2) = cos(g(6))*sin(g(5))*sin(g(4)) - cos(g(4))*sin(g(6));
+        out(1,3) = sin(g(6))*sin(g(4)) + cos(g(6))*cos(g(4))*sin(g(5));
+        out(1,4) = 0;
+        out(1,5) = 0;
+        out(1,6) = 0;
+        
+        out(2,1) = cos(g(5))*sin(g(6));
+        out(2,2) = cos(g(6))*cos(g(4)) + sin(g(6))*sin(g(5))*sin(g(4));
+        out(2,3) = cos(g(4))*sin(g(6))*sin(g(5)) - cos(g(6))*sin(g(4));
+        out(2,4) = 0;
+        out(2,5) = 0;
+        out(2,6) = 0;
+        
+        out(3,1) = -sin(g(5));
+        out(3,2) = cos(g(5))*sin(g(4));
+        out(3,3) = cos(g(5))*cos(g(4));
+        out(3,4) = 0;
+        out(3,5) = 0;
+        out(3,6) = 0;
+        
+        out(4,1) = 0;
+        out(4,2) = 0;
+        out(4,3) = 0;
+        out(4,4) = ((real(cos(g(5))*cos(g(4))) - imag(cos(g(5))*sin(g(4))))^2*((imag(cos(g(5))*cos(g(4))) + real(cos(g(5))*sin(g(4))))^2/(real(cos(g(5))*cos(g(4))) - imag(cos(g(5))*sin(g(4))))^2 + 1))/((imag(cos(g(5))*cos(g(4))) + real(cos(g(5))*sin(g(4))))^2 + (real(cos(g(5))*cos(g(4))) - imag(cos(g(5))*sin(g(4))))^2);
+        out(4,5) = -((real(cos(g(5))*cos(g(4))) - imag(cos(g(5))*sin(g(4))))^2*(imag(sin(g(5)))/(real(cos(g(5))*cos(g(4))) - imag(cos(g(5))*sin(g(4)))) - (real(sin(g(5)))*(imag(cos(g(5))*cos(g(4))) + real(cos(g(5))*sin(g(4)))))/(real(cos(g(5))*cos(g(4))) - imag(cos(g(5))*sin(g(4))))^2))/((imag(cos(g(5))*cos(g(4))) + real(cos(g(5))*sin(g(4))))^2 + (real(cos(g(5))*cos(g(4))) - imag(cos(g(5))*sin(g(4))))^2);
+        out(4,6) = ((real(cos(g(5))*cos(g(4))) - imag(cos(g(5))*sin(g(4))))^2*(real(sin(g(5)))/(real(cos(g(5))*cos(g(4))) - imag(cos(g(5))*sin(g(4)))) + (imag(sin(g(5)))*(imag(cos(g(5))*cos(g(4))) + real(cos(g(5))*sin(g(4)))))/(real(cos(g(5))*cos(g(4))) - imag(cos(g(5))*sin(g(4))))^2))/((imag(cos(g(5))*cos(g(4))) + real(cos(g(5))*sin(g(4))))^2 + (real(cos(g(5))*cos(g(4))) - imag(cos(g(5))*sin(g(4))))^2);
+        
+        out(5,1) = 0;
+        out(5,2) = 0;
+        out(5,3) = 0;
+        out(5,4) = 0;
+        out(5,5) = -(((- real(cos(g(5))*cos(g(4))) + (imag(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(4))*sin(g(5))) - imag(cos(g(4))*sin(g(6))*sin(g(5))) + imag(cos(g(6))*sin(g(4))) + real(sin(g(6))*sin(g(4)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (imag(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(4))*sin(g(5))) + real(cos(g(4))*sin(g(6))*sin(g(5))) - real(cos(g(6))*sin(g(4))) + imag(sin(g(6))*sin(g(4)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + ((imag(cos(g(4))*sin(g(6))*sin(g(5))) - imag(cos(g(6))*sin(g(4))))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + ((real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))*(imag(cos(g(6))*cos(g(4))*sin(g(5))) + imag(sin(g(6))*sin(g(4)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) - (imag(cos(g(5))*sin(g(6)))*sign(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6))))*(sin(g(6))*sin(g(4)) - cos(g(6))*sin(g(4))*1i + cos(g(6))*cos(g(4))*sin(g(5)) + cos(g(4))*sin(g(6))*sin(g(5))*1i))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)^2 - (imag(cos(g(6))*cos(g(5)))*sign(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))*(sin(g(6))*sin(g(4)) - cos(g(6))*sin(g(4))*1i + cos(g(6))*cos(g(4))*sin(g(5)) + cos(g(4))*sin(g(6))*sin(g(5))*1i))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)^2)/(- imag(sin(g(5))) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)) - ((real(sin(g(5))) + (imag(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (imag(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))*(imag(cos(g(5))*cos(g(4))) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(4))*sin(g(5))) - imag(cos(g(4))*sin(g(6))*sin(g(5))) + imag(cos(g(6))*sin(g(4))) + real(sin(g(6))*sin(g(4)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(4))*sin(g(5))) + real(cos(g(4))*sin(g(6))*sin(g(5))) - real(cos(g(6))*sin(g(4))) + imag(sin(g(6))*sin(g(4)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + ((real(cos(g(4))*sin(g(6))*sin(g(5))) - real(cos(g(6))*sin(g(4))))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + ((real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))*(real(cos(g(6))*cos(g(4))*sin(g(5))) + real(sin(g(6))*sin(g(4)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) - (real(cos(g(5))*sin(g(6)))*sign(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6))))*(sin(g(6))*sin(g(4)) - cos(g(6))*sin(g(4))*1i + cos(g(6))*cos(g(4))*sin(g(5)) + cos(g(4))*sin(g(6))*sin(g(5))*1i))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)^2 - (real(cos(g(6))*cos(g(5)))*sign(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))*(sin(g(6))*sin(g(4)) - cos(g(6))*sin(g(4))*1i + cos(g(6))*cos(g(4))*sin(g(5)) + cos(g(4))*sin(g(6))*sin(g(5))*1i))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)^2))/(- imag(sin(g(5))) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))^2)*(- imag(sin(g(5))) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))^2)/((real(sin(g(5))) + (imag(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (imag(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))^2 + (- imag(sin(g(5))) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))^2);
+        out(5,6) = -(((real(cos(g(5))*sin(g(4))) - ((imag(sin(g(6))*sin(g(5))*sin(g(4))) + imag(cos(g(6))*cos(g(4))))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (imag(cos(g(6))*cos(g(5)))*(imag(sin(g(6))*sin(g(5))*sin(g(4))) - real(cos(g(6))*sin(g(5))*sin(g(4))) + imag(cos(g(6))*cos(g(4))) + real(cos(g(4))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) - (imag(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*sin(g(5))*sin(g(4))) + real(sin(g(6))*sin(g(5))*sin(g(4))) + real(cos(g(6))*cos(g(4))) - imag(cos(g(4))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) - ((imag(cos(g(6))*sin(g(5))*sin(g(4))) - imag(cos(g(4))*sin(g(6))))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (imag(cos(g(5))*sin(g(6)))*sign(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6))))*(cos(g(6))*cos(g(4))*1i - cos(g(4))*sin(g(6)) + cos(g(6))*sin(g(5))*sin(g(4)) + sin(g(6))*sin(g(5))*sin(g(4))*1i))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)^2 + (imag(cos(g(6))*cos(g(5)))*sign(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))*(cos(g(6))*cos(g(4))*1i - cos(g(4))*sin(g(6)) + cos(g(6))*sin(g(5))*sin(g(4)) + sin(g(6))*sin(g(5))*sin(g(4))*1i))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)^2)/(- imag(sin(g(5))) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)) + ((real(sin(g(5))) + (imag(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (imag(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))*(imag(cos(g(5))*sin(g(4))) + ((real(sin(g(6))*sin(g(5))*sin(g(4))) + real(cos(g(6))*cos(g(4))))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) - (real(cos(g(6))*cos(g(5)))*(imag(sin(g(6))*sin(g(5))*sin(g(4))) - real(cos(g(6))*sin(g(5))*sin(g(4))) + imag(cos(g(6))*cos(g(4))) + real(cos(g(4))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*sin(g(5))*sin(g(4))) + real(sin(g(6))*sin(g(5))*sin(g(4))) + real(cos(g(6))*cos(g(4))) - imag(cos(g(4))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + ((real(cos(g(6))*sin(g(5))*sin(g(4))) - real(cos(g(4))*sin(g(6))))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) - (real(cos(g(5))*sin(g(6)))*sign(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6))))*(cos(g(6))*cos(g(4))*1i - cos(g(4))*sin(g(6)) + cos(g(6))*sin(g(5))*sin(g(4)) + sin(g(6))*sin(g(5))*sin(g(4))*1i))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)^2 - (real(cos(g(6))*cos(g(5)))*sign(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))*(cos(g(6))*cos(g(4))*1i - cos(g(4))*sin(g(6)) + cos(g(6))*sin(g(5))*sin(g(4)) + sin(g(6))*sin(g(5))*sin(g(4))*1i))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i)^2))/(- imag(sin(g(5))) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))^2)*(- imag(sin(g(5))) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))^2)/((real(sin(g(5))) + (imag(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (imag(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))^2 + (- imag(sin(g(5))) + (real(cos(g(5))*sin(g(6)))*(imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i) + (real(cos(g(6))*cos(g(5)))*(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))))/abs(cos(g(6))*cos(g(5)) + cos(g(5))*sin(g(6))*1i))^2);
+        
+        out(6,1) = 0;
+        out(6,2) = 0;
+        out(6,3) = 0;
+        out(6,4) = 0;
+        out(6,5) = -((real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))^2*((imag(cos(g(6))*cos(g(4))*sin(g(5))) + real(cos(g(4))*sin(g(6))*sin(g(5))) - real(cos(g(6))*sin(g(4))) + imag(sin(g(6))*sin(g(4))))/(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))) - ((imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6))))*(real(cos(g(6))*cos(g(4))*sin(g(5))) - imag(cos(g(4))*sin(g(6))*sin(g(5))) + imag(cos(g(6))*sin(g(4))) + real(sin(g(6))*sin(g(4)))))/(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))^2))/((imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6))))^2 + (real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))^2);
+        out(6,6) = ((real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))^2*((imag(cos(g(6))*sin(g(5))*sin(g(4))) + real(sin(g(6))*sin(g(5))*sin(g(4))) + real(cos(g(6))*cos(g(4))) - imag(cos(g(4))*sin(g(6))))/(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6)))) + ((imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6))))*(imag(sin(g(6))*sin(g(5))*sin(g(4))) - real(cos(g(6))*sin(g(5))*sin(g(4))) + imag(cos(g(6))*cos(g(4))) + real(cos(g(4))*sin(g(6)))))/(real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))^2))/((imag(cos(g(6))*cos(g(5))) + real(cos(g(5))*sin(g(6))))^2 + (real(cos(g(6))*cos(g(5))) - imag(cos(g(5))*sin(g(6))))^2);        
+    end
+    out = real(out);
     % check inverse
     if inverse == 'y'
         out = inv(out);

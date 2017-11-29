@@ -47,6 +47,11 @@ classdef link
             plotPose(ax, obj.distal, 1);
         end
         
+        function obj = drawPose(obj, ax, h)
+            % plots a cosys at some point on link
+            plotPose(ax, poseFromMatrix(rightAction(obj.pose, h)), 1);
+        end
+        
         function obj = drawArrow(obj, ax, arrow_params)
             poi = poseFromMatrix(rightAction(obj.pose, obj.h_poi));
             hold on;
