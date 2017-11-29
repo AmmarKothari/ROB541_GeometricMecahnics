@@ -27,7 +27,11 @@ xlabel('x'); ylabel('y'); zlabel('z')
 travel_path = SpiralPath(0:pi/4:4*pi, 1, 0); %flat circle
 travel_path(:,3) = travel_path(:,3) + 2;
 i = 1;
+t = 0;
+dt = 0.1;
+controller_dt = 1;
 while i <=length(travel_path)
+    t = t + dt;
     if i == 2
         i = 2;
     end
@@ -37,10 +41,9 @@ while i <=length(travel_path)
     ds = moveToEndEffector(s, EE_pose).';
     % calculates Jacobianfigures out control value
     % and sends that value (probably want to split this up a bit)
-    dt = 0.1;
-    tic
-    A = A.JPIController(ds, EE_pose, dt);
-    toc
+    if abs((mod(t, controller_dt) - controller_dt)) < 1e-5
+        A = A.JPIController(ds, EE_pose, dt);
+    end
     EE_pose = A.links(end).distal;
     if norm(EE_pose(1:3) - s(1:3)) < 0.1
         % increment to next spot in path when distance is small
