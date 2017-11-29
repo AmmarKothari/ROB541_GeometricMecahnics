@@ -15,7 +15,7 @@ l2 = link(a2, h2,'r', h2/2);
 l3 = link(a3, h3,'g', h3/2);
 
 A = arm([l1, l2, l3]);
-A = A.set_joints([pi/4,pi/4,pi/4]);
+A = A.set_joints([pi/2,pi/3,pi/4]);
 A = A.set_joint_vel([0,0,0]);
 A = A.calc_poses();
 A = A.calc_vels();
@@ -29,7 +29,8 @@ travel_path(:,3) = travel_path(:,3) + 2;
 i = 1;
 t = 0;
 dt = 0.1;
-controller_dt = 1;
+controller_dt = 0.2;
+ddtheta_clamped = 0;
 while i <=length(travel_path)
     t = t + dt;
     if i == 2
@@ -42,8 +43,10 @@ while i <=length(travel_path)
     % calculates Jacobianfigures out control value
     % and sends that value (probably want to split this up a bit)
     if abs((mod(t, controller_dt) - controller_dt)) < 1e-5
-        A = A.JPIController(ds, EE_pose, dt);
+        ddtheta_clamped = A.JPIController(ds, EE_pose);
     end
+    % run system forward one time step
+    A = A.dynamics(ddtheta_clamped.', dt);
     EE_pose = A.links(end).distal;
     if norm(EE_pose(1:3) - s(1:3)) < 0.1
         % increment to next spot in path when distance is small
@@ -53,7 +56,7 @@ while i <=length(travel_path)
         d = EE_pose(1:3) - s(1:3);
         fprintf('Point %d Distance: %0.2f %0.2f %0.2f = %0.2f\n', i, d(1), d(2), d(3), norm(EE_pose(1:3) - s(1:3)))
     end
-%     cla(ax);
+    cla(ax);
 %     plot3(travel_path(:,1), travel_path(:,2), travel_path(:,3));
     A.drawArm(ax);
     A.drawArrows(ax);
