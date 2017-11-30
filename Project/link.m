@@ -27,7 +27,7 @@ classdef link
             obj.alpha_ = 0;
             obj.c = c;
             obj.alpha_dot_desired = 0;
-            obj.kp = 10;
+            obj.kp = 1;
             obj.ki = 1;
             obj.alpha_dot = 0;
             obj.alpha_dot_dot = 0;
@@ -39,9 +39,15 @@ classdef link
             obj.alpha_dot_desired = alpha_dot_desired;
         end
         function obj = calcAlphaDD(obj)
+            % calculates alpha_dd for a given error in alpha_d
             e = obj.alpha_dot_desired - obj.alpha_dot;
             obj.alpha_dot_dot = obj.kp * e;
-        end   
+        end
+        function obj = step(obj, dt)
+            % runs system forward one time step
+            obj.alpha_dot = obj.alpha_dot + dt*obj.alpha_dot_dot;
+            obj.alpha_ = obj.alpha_ + dt*obj.alpha_dot;
+        end
         function obj = linkPos(obj, alpha_)
             obj.alpha_ = alpha_;
             % figure out how the base pose changes

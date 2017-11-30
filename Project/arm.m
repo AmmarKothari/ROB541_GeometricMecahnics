@@ -12,11 +12,13 @@ classdef arm
         vel_max
         dist_max
         alpha_dot_desired
+        num_links
     end
     
     methods
         function obj = arm(links)
             obj.links = links;
+            obj.num_links = length(links);
             obj.alpha_dot = zeros(length(links), 1);
             obj.alpha_dot_desired = zeros(length(links), 1);
             obj.alpha = zeros(length(links), 1);
@@ -27,8 +29,7 @@ classdef arm
         end
         function obj = addlink(obj,link)
             obj.links = [obj.links, link];
-            obj.alpha_dot = [obj.alpha_dot; 0];
-            obj.alpha = [obj.alpha; 0];
+            obj.num_links = obj.num_links + 1;
         end
         function poses = get_poses(obj)
             poses = zeros(length(obj.links)+1, 6);
@@ -39,7 +40,7 @@ classdef arm
         end
         function obj = calc_poses(obj, alphas)
             if nargin < 2
-                alphas = obj.alpha;
+                alphas = [obj.links.alpha_];
             end
             % move first link
             obj.links(1) = obj.links(1).linkPos(alphas(1));
@@ -75,7 +76,7 @@ classdef arm
             poi = rightAction(p, h_poi); % find the point we are interested in
             TeRg = RightLiftedAction(poi);
             J = TeRg * J_spatial; % transform into world Jacobian
-            vel_pt = J * obj.alpha_dot(1:link_num).'; % get world velocity from joint angle velocities
+            vel_pt = J * obj.alpha_dot(1:link_num); % get world velocity from joint angle velocities
         end
         
         function ddtheta = JacobianPsuedoInverse(obj, ds, J)
@@ -98,9 +99,14 @@ classdef arm
             ddtheta_clamped = obj.accelerationLimit(ddtheta_control, obj.acc_norm_max);
         end
         
-        function obj = dynamics(obj, ddtheta, dt)
-            obj.alpha_dot = obj.alpha_dot + ddtheta * dt;
-            obj.alpha = obj.alpha + obj.alpha_dot * dt;
+        function obj = step(obj, dt)
+            for i = 1:length(obj.links)
+                obj.links(i) = obj.links(i).step(dt);
+                obj.alpha(i) = obj.links(i).alpha_;
+                obj.alpha_dot(i) = obj.links(i).alpha_dot;
+            end
+%             obj.alpha_dot = obj.alpha_dot + ddtheta * dt;
+%             obj.alpha = obj.alpha + obj.alpha_dot * dt;
             obj = obj.calc_poses();
             obj = obj.calc_vels();
         end
@@ -122,8 +128,6 @@ classdef arm
             % calculates velocities for the current alpha and alpha_dot
             vs = [];
             for i = 1:length(obj.links)
-                p_prox = obj.links(i).pose;
-                p_dist = obj.links(i).distal;
                 vel_pt = double(obj.calc_point_vel(i, obj.links(i).h_poi)).';
                 vs = [vs; vel_pt];
             end
@@ -131,11 +135,15 @@ classdef arm
         end
         
         function obj = set_joint_vel(obj, alpha_dot)
-            obj.alpha_dot = alpha_dot;
+            for i = 1:length(obj.links)
+                obj.links(i).alpha_dot = alpha_dot(i);
+            end
         end
         
-        function obj = set_joints(obj, alpha)
-            obj.alpha = alpha;
+        function obj = set_joints(obj, alpha_)
+            for i = 1:length(obj.links)
+                obj.links(i).alpha_ = alpha_(i);
+            end
         end
         
         function obj = set_alpha_dot_desired(obj, vs_des)
