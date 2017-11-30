@@ -82,7 +82,7 @@ classdef arm
             ddtheta = JacobianPsuedoInverse(ds, J);
         end
         
-        function obj = JPIController(obj, ds, h_poi, dt)
+        function ddtheta_clamped = JPIController(obj, ds, h_poi)
             ds_clamped = obj.distanceLimit(ds, obj.dist_max);
             link_num = length(obj.links);
             J_spatial_all = obj.calc_Jacobian_spatial(); % full jacobian
@@ -92,13 +92,10 @@ classdef arm
             J = TeRg * J_spatial_all; % transform into world Jacobian
             
             % desired acceleration
-            K = 1;
+            K = 5;
             ddtheta = double(obj.JacobianPsuedoInverse(ds_clamped,J));
             ddtheta_control = K*ddtheta;
             ddtheta_clamped = obj.accelerationLimit(ddtheta_control, obj.acc_norm_max);
-            
-            % run system forward one time step
-            obj = obj.dynamics(ddtheta_clamped.', dt);
         end
         
         function obj = dynamics(obj, ddtheta, dt)
