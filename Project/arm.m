@@ -11,12 +11,14 @@ classdef arm
         acc_norm_max
         vel_max
         dist_max
+        alpha_dot_desired
     end
     
     methods
         function obj = arm(links)
             obj.links = links;
             obj.alpha_dot = zeros(length(links), 1);
+            obj.alpha_dot_desired = zeros(length(links), 1);
             obj.alpha = zeros(length(links), 1);
             obj.base_pose = zeros(1,6);
             obj.acc_norm_max = 10;
@@ -137,6 +139,20 @@ classdef arm
         
         function obj = set_joints(obj, alpha)
             obj.alpha = alpha;
+        end
+        
+        function obj = set_alpha_dot_desired(obj, vs_des)
+            obj.alpha_dot_desired = vs_des;
+            for i = 1:length(obj.links)
+                obj.links(i) = obj.links(i).setAlphaDotDesired(vs_des(i));
+            end
+        end
+        
+        function obj = calcAlphaDD(obj)
+            for i = 1:length(obj.links)
+                obj.links(i) = obj.links(i).calcAlphaDD();
+            end
+            
         end
         
         function obj = drawArm(obj, ax)

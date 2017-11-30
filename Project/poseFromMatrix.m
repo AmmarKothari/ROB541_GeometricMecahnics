@@ -11,12 +11,5 @@ function out = poseFromMatrix(group)
     catch
         disp('Error!')
     end
-%     try
-%         if isvalid(group(3,1))
-%             beta = asin(-group(3,1));
-%         end
-%     catch
-%         blah = 1;
-%     end
 	out = [x, y, z, gamma, beta, alpha];
 end

@@ -125,5 +125,76 @@ for i = 1:length(time_traj)
 end
 % A.J_spatial()
 %%
+% Testing out low level controller for links
+a1 = [0,0,0,0,0,1]; % rotation around z
+h1 = [1,0,0,0,0,0]; % extending in x
+l1 = link(a1, h1,'b', h1/2);
+close(figure(1));
+f = figure(1);
+ax = axes(f);
+l1 = l1.setAlphaDotDesired(0.1);
+dt = 0.01;
+points = 1000;
+a = zeros(1,points);
+v = zeros(1,points);
+d = zeros(1,points);
+for i = 1:points
+    l1 = l1.calcAlphaDD();
+    l1.alpha_dot = l1.alpha_dot + dt * l1.alpha_dot_dot;
+    a(i) = l1.alpha_dot_dot;
+    v(i) = l1.alpha_dot;
+    d(i) = l1.alpha_ + l1.alpha_dot * dt;
+    l1 = l1.linkPos(d(i));
+    l1.drawLink(ax);
+    pause(0.0001);
+end
+figure(2)
+plot(v, 'rx')
+hold on
+plot(a, 'bo')
+hold off
+
+%%
+% Testing out simple controller with straight line path
+% close(figure(1));
+% f = figure(1);
+% ax = axes(f);
+a1 = [0,0,0,0,0,1]; % rotation around z
+h1 = [1,0,0,0,0,0]; % extending in x
+a2 = [0,0,0,0,0,1]; % rotation around z
+h2 = [1,0,0,0,0,0]; % extending in x
+l1 = link(a1, h1,'b', h1/2);
+l2 = link(a2, h2,'g', h2/2);
+dt = 0.01;
+points = 1000;
+A = arm([l1, l2]);
+A = A.set_joints([pi/4,pi/4]);
+A = A.set_joint_vel([0,0]);
+A = A.calc_poses();
+A = A.calc_vels();
+
+
+A = A.set_alpha_dot_desired([0.1, 0.1]);
+for i = 1:points
+    A = A.calcAlphaDD();
+    
+    
+    
+end
+
+% A.drawArm(ax);
+% A.drawArrows(ax);
+% % plotPose(ax, s, 0.5);
+% view(45,45)
+% set(gca,'XLim',[-3 3],'YLim',[-3 3],'ZLim',[-3 3])
+% xlabel('x'); ylabel('y'); zlabel('z')
+% pause(0.001);
+
+
+
+
+
+
+
 
 

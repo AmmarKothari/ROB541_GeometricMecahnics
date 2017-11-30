@@ -7,8 +7,14 @@ classdef link
         pose
         zero_pose
         alpha_
+        alpha_dot
         distal
         c
+        % input desired velocity and output acceleration
+        alpha_dot_desired
+        kp
+        ki
+        alpha_dot_dot
     end
     
     methods
@@ -20,16 +26,29 @@ classdef link
             obj.zero_pose = [0,0,0,0,0,0];
             obj.alpha_ = 0;
             obj.c = c;
+            obj.alpha_dot_desired = 0;
+            obj.kp = 10;
+            obj.ki = 1;
+            obj.alpha_dot = 0;
+            obj.alpha_dot_dot = 0;
         end
         function obj = setZero(obj, zero_pose)
             obj.zero_pose = zero_pose;
         end
+        function obj = setAlphaDotDesired(obj, alpha_dot_desired)
+            obj.alpha_dot_desired = alpha_dot_desired;
+        end
+        function obj = calcAlphaDD(obj)
+            e = obj.alpha_dot_desired - obj.alpha_dot;
+            obj.alpha_dot_dot = obj.kp * e;
+        end   
         function obj = linkPos(obj, alpha_)
             obj.alpha_ = alpha_;
             % figure out how the base pose changes
             obj.pose = poseFromMatrix(rightAction(obj.zero_pose, obj.a * obj.alpha_));
             obj.distal = poseFromMatrix(rightAction(obj.pose, obj.h));
         end
+        
         function obj = drawLink(obj, ax)
             X = [obj.pose(1), obj.distal(1)];
             Y = [obj.pose(2), obj.distal(2)];
