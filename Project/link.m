@@ -15,6 +15,7 @@ classdef link
         kp
         ki
         alpha_dot_dot
+        e_total
     end
     
     methods
@@ -27,10 +28,11 @@ classdef link
             obj.alpha_ = 0;
             obj.c = c;
             obj.alpha_dot_desired = 0;
-            obj.kp = 1;
+            obj.kp = 10;
             obj.ki = 1;
             obj.alpha_dot = 0;
             obj.alpha_dot_dot = 0;
+            obj.e_total = 0;
         end
         function obj = setZero(obj, zero_pose)
             obj.zero_pose = zero_pose;
@@ -41,7 +43,16 @@ classdef link
         function obj = calcAlphaDD(obj)
             % calculates alpha_dd for a given error in alpha_d
             e = obj.alpha_dot_desired - obj.alpha_dot;
+            obj.e_total = obj.e_total + e;
             obj.alpha_dot_dot = obj.kp * e;
+            if sign(e) == sign(obj.e_total)
+                obj.alpha_dot_dot = obj.alpha_dot_dot + obj.ki * obj.e_total;
+%             else
+%                 obj.alpha_dot_dot = obj.alpha_dot_dot + obj.ki * sign(e)*abs(obj.e_total);
+            end
+        end
+        function obj = clearError(obj)
+            obj.e_total = 0;
         end
         function obj = step(obj, dt)
             % runs system forward one time step
@@ -61,7 +72,7 @@ classdef link
             Z = [obj.pose(3), obj.distal(3)];
             hold on
             % plots line
-            plot3(ax, X, Y, Z, obj.c);
+            plot3(ax, X, Y, Z, obj.c, 'LineWidth', 8);
             % plots base
             plot3(ax, obj.pose(1), obj.pose(2), obj.pose(3), '^k');
             % plots distal
@@ -80,7 +91,7 @@ classdef link
         function obj = drawArrow(obj, ax, arrow_params)
             poi = poseFromMatrix(rightAction(obj.pose, obj.h_poi));
             hold on;
-            quiver3(ax, poi(1), poi(2), poi(3), arrow_params(1), arrow_params(2), arrow_params(3));
+            quiver3(ax, poi(1), poi(2), poi(3), arrow_params(1), arrow_params(2), arrow_params(3), 'linewidth',5);
             hold off;
         end
     end

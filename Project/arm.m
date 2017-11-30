@@ -25,7 +25,7 @@ classdef arm
             obj.base_pose = zeros(1,6);
             obj.acc_norm_max = 10;
             obj.vel_max = 1;
-            obj.dist_max = 0.1;
+            obj.dist_max = 1;
         end
         function obj = addlink(obj,link)
             obj.links = [obj.links, link];
@@ -79,24 +79,22 @@ classdef arm
             vel_pt = J * obj.alpha_dot(1:link_num); % get world velocity from joint angle velocities
         end
         
-        function ddtheta = JacobianPsuedoInverse(obj, ds, J)
-            ddtheta = JacobianPsuedoInverse(ds, J);
+        function dtheta = JacobianPsuedoInverse(obj, ds, J)
+            dtheta = JacobianPsuedoInverse(ds, J);
         end
         
-        function ddtheta_clamped = JPIController(obj, ds, h_poi)
+        function dtheta_desired = JPIController(obj, ds, h_poi)
             ds_clamped = obj.distanceLimit(ds, obj.dist_max);
-            link_num = length(obj.links);
             J_spatial_all = obj.calc_Jacobian_spatial(); % full jacobian
-            p = obj.links(link_num).pose; % world pose of base of link
+            p = obj.links(obj.num_links).pose; % world pose of base of link
             poi = rightAction(p, h_poi); % find the point we are interested in
             TeRg = RightLiftedAction(poi);
             J = TeRg * J_spatial_all; % transform into world Jacobian
             
             % desired acceleration
-            K = 5;
-            ddtheta = double(obj.JacobianPsuedoInverse(ds_clamped,J));
-            ddtheta_control = K*ddtheta;
-            ddtheta_clamped = obj.accelerationLimit(ddtheta_control, obj.acc_norm_max);
+            dtheta = obj.JacobianPsuedoInverse(ds_clamped,J);
+            dtheta_desired = dtheta;
+%             ddtheta_clamped = obj.accelerationLimit(ddtheta_control, obj.acc_norm_max);
         end
         
         function obj = step(obj, dt)
@@ -121,13 +119,15 @@ classdef arm
         function ds_clamped = distanceLimit(obj, ds, dist_max)
             if norm(ds) > dist_max
                 ds_clamped = ds / norm(ds) * dist_max;
+            else
+                ds_clamped = ds;
             end
         end
         
         function obj = calc_vels(obj)
             % calculates velocities for the current alpha and alpha_dot
             vs = [];
-            for i = 1:length(obj.links)
+            for i = 1:obj.num_links
                 vel_pt = double(obj.calc_point_vel(i, obj.links(i).h_poi)).';
                 vs = [vs; vel_pt];
             end
@@ -135,39 +135,44 @@ classdef arm
         end
         
         function obj = set_joint_vel(obj, alpha_dot)
-            for i = 1:length(obj.links)
+            for i = 1:obj.num_links
                 obj.links(i).alpha_dot = alpha_dot(i);
             end
         end
         
         function obj = set_joints(obj, alpha_)
-            for i = 1:length(obj.links)
+            for i = 1:obj.num_links
                 obj.links(i).alpha_ = alpha_(i);
             end
         end
         
         function obj = set_alpha_dot_desired(obj, vs_des)
             obj.alpha_dot_desired = vs_des;
-            for i = 1:length(obj.links)
+            for i = 1:obj.num_links
                 obj.links(i) = obj.links(i).setAlphaDotDesired(vs_des(i));
             end
         end
         
         function obj = calcAlphaDD(obj)
-            for i = 1:length(obj.links)
+            for i = 1:obj.num_links
                 obj.links(i) = obj.links(i).calcAlphaDD();
             end
-            
+        end
+        
+        function obj = clearErrors(obj)
+            for i = 1:obj.num_links
+                obj.links(i) = obj.links(i).clearError();
+            end
         end
         
         function obj = drawArm(obj, ax)
-            for i = 1:length(obj.links)
+            for i = 1:obj.num_links
                 obj.links(i).drawLink(ax);
             end
         end
         
         function obj = drawArrows(obj, ax)
-            for i = 1:length(obj.links)
+            for i = 1:obj.num_links
                 obj.links(i).drawArrow(ax, obj.vs(i,:));
             end
         end
