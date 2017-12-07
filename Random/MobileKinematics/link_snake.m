@@ -23,7 +23,7 @@ classdef link_snake
         function obj = link_snake(a, h, c, h_poi)
             obj.h = group(h);
             obj.h_poi = group(h_poi);
-            obj.a = group(a);
+            obj.a = a;
             obj.pose = group([0,0,0]);
             obj.zero_pose = group([0,0,0]);
             obj.alpha = 0;
@@ -36,6 +36,12 @@ classdef link_snake
             obj.e_total = 0;
         end
         function obj = setZero(obj, zero_pose)
+            obj.zero_pose = zero_pose;
+        end
+        function obj = setProximal(obj, zero_pose)
+            obj.zero_pose = zero_pose;
+        end
+        function obj = setDistal(obj, zero_pose)
             obj.zero_pose = zero_pose;
         end
         function obj = setAlphaDotDesired(obj, alpha_dot_desired)
@@ -60,24 +66,33 @@ classdef link_snake
             obj.alpha_dot = obj.alpha_dot + dt*obj.alpha_dot_dot;
             obj.alpha_ = obj.alpha_ + dt*obj.alpha_dot;
         end
-        function obj = linkPos(obj, alpha_)
+        function obj = linkPosForward(obj, alpha_)
             obj.alpha = alpha_;
             % figure out how the base pose changes
-            obj.pose = poseFromMatrix(RightAction(obj.zero_pose, obj.a * obj.alpha));
+            obj.proximal = poseFromMatrix(RightAction(obj.zero_pose, obj.a * obj.alpha));
+            obj.pose = poseFromMatrix(RightAction(obj.proximal, obj.h));
             obj.distal = poseFromMatrix(RightAction(obj.pose, obj.h));
+        end
+        function obj = linkPosBackward(obj, alpha_)
+            obj.alpha = alpha_;
+            % figure out how the base pose changes
+            obj.distal = poseFromMatrix(RightAction(obj.zero_pose, obj.a * obj.alpha));
+            obj.pose = poseFromMatrix(RightAction(obj.distal, inverseGroup(obj.h)));
+            obj.proximal = poseFromMatrix(RightAction(obj.pose, inverseGroup(obj.h)));
         end
         
         function obj = drawLink(obj, ax)
-            X = [obj.pose(1), obj.distal(1)];
-            Y = [obj.pose(2), obj.distal(2)];
-            Z = [obj.pose(3), obj.distal(3)];
+            X = [obj.proximal(1), obj.distal(1)];
+            Y = [obj.proximal(2), obj.distal(2)];
             hold on
             % plots line
-            plot3(ax, X, Y, Z, obj.c, 'LineWidth', 8);
-            % plots base
-            plot3(ax, obj.pose(1), obj.pose(2), obj.pose(3), '^k');
+            plot(ax, X, Y, obj.c, 'LineWidth', 8);
+            % plots center
+            plot(ax, obj.pose(1), obj.pose(2), '*k');
+            % plot proximal
+            plot(ax, obj.proximal(1), obj.proximal(2), '^k');
             % plots distal
-            plot3(ax, obj.distal(1), obj.distal(2), obj.distal(3), 'sk');
+            plot(ax, obj.distal(1), obj.distal(2), 'sk');
             hold off
         end
         function obj = drawDistalPose(obj, ax)
