@@ -12,6 +12,7 @@ classdef arm
         vel_max
         dist_max
         alpha_dot_desired
+        alpha_desired
         num_links
     end
     
@@ -21,6 +22,7 @@ classdef arm
             obj.num_links = length(links);
             obj.alpha_dot = zeros(length(links), 1);
             obj.alpha_dot_desired = zeros(length(links), 1);
+            obj.alpha_desired = zeros(length(links), 1);
             obj.alpha = zeros(length(links), 1);
             obj.base_pose = zeros(1,6);
             obj.acc_norm_max = 10;
@@ -37,6 +39,9 @@ classdef arm
             for i = 1:length(obj.links)
                 poses(i,:) = obj.links(i).pose;
             end
+        end
+        function alphas = get_alphas(obj)
+            alphas = [obj.links.alpha_];
         end
         function obj = calc_poses(obj, alphas)
             if nargin < 2
@@ -146,6 +151,13 @@ classdef arm
             end
         end
         
+        function obj = set_alpha_desired(obj, alphas)
+            obj.alpha_desired = alphas;
+            for i = 1:obj.num_links
+                obj.links(i) = obj.links(i).setAlphaDesired(alphas(i));
+            end
+        end
+        
         function obj = set_alpha_dot_desired(obj, vs_des)
             obj.alpha_dot_desired = vs_des;
             for i = 1:obj.num_links
@@ -156,6 +168,18 @@ classdef arm
         function obj = calcAlphaDD(obj)
             for i = 1:obj.num_links
                 obj.links(i) = obj.links(i).calcAlphaDD();
+            end
+        end
+        
+        function obj = calcAlphaDD_alpha(obj)
+            for i = 1:obj.num_links
+                obj.links(i) = obj.links(i).calcAlphaDD_alpha();
+            end
+        end
+        
+        function obj = setKp(obj, kp)
+            for i = 1:obj.num_links
+                obj.links(i).kp = kp;
             end
         end
         
@@ -179,6 +203,18 @@ classdef arm
         
         function obj = drawDistalPose(obj, ax, link_num)
             obj.links(link_num).drawDistalPose(ax);
+        end
+        
+        function dist = dist_to_goal(obj, goal, al)
+            f_arm = obj.calc_poses(al);
+            dist = f_arm.links(end).distal - goal;
+        end
+        
+        function goal_alphas = invKin(obj, goal)
+            dist_func = @(al) sum(0.5 * obj.dist_to_goal(goal, al).^2);
+            x0 = obj.get_alphas();
+            % add joint constraints!
+            goal_alphas = fmincon(dist_func, x0);
         end
     end
     

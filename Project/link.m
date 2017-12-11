@@ -16,6 +16,7 @@ classdef link
         ki
         alpha_dot_dot
         e_total
+        alpha_desired
     end
     
     methods
@@ -23,19 +24,31 @@ classdef link
             obj.h = h;
             obj.h_poi = h_poi;
             obj.a = a;
+            obj.c = c;
             obj.pose = [0,0,0,0,0,0];
             obj.zero_pose = [0,0,0,0,0,0];
-            obj.alpha_ = 0;
-            obj.c = c;
-            obj.alpha_dot_desired = 0;
-            obj.kp = 10;
+            obj.kp = 1;
             obj.ki = 1;
             obj.alpha_dot = 0;
+            obj.alpha_ = 0;
+            obj.alpha_desired = obj.alpha_;
+            obj.alpha_dot_desired = obj.alpha_dot;
             obj.alpha_dot_dot = 0;
             obj.e_total = 0;
         end
         function obj = setZero(obj, zero_pose)
             obj.zero_pose = zero_pose;
+        end
+        function obj = setAlphaDesired(obj, alpha_desired)
+            obj.alpha_desired = alpha_desired;
+        end
+        function obj = calcAlphaDD_alpha(obj)
+            e = obj.alpha_desired - obj.alpha_;
+            obj.e_total = obj.e_total + e;
+            obj.alpha_dot_dot = obj.kp * e;
+            if sign(e) == sign(obj.e_total)
+                obj.alpha_dot_dot = obj.alpha_dot_dot + obj.ki * obj.e_total;
+            end
         end
         function obj = setAlphaDotDesired(obj, alpha_dot_desired)
             obj.alpha_dot_desired = alpha_dot_desired;
@@ -56,8 +69,8 @@ classdef link
         end
         function obj = step(obj, dt)
             % runs system forward one time step
+            obj.alpha_ = obj.alpha_ + dt*obj.alpha_dot + 1/2*obj.alpha_dot_dot*dt^2;
             obj.alpha_dot = obj.alpha_dot + dt*obj.alpha_dot_dot;
-            obj.alpha_ = obj.alpha_ + dt*obj.alpha_dot;
         end
         function obj = linkPos(obj, alpha_)
             obj.alpha_ = alpha_;
@@ -65,7 +78,6 @@ classdef link
             obj.pose = poseFromMatrix(rightAction(obj.zero_pose, obj.a * obj.alpha_));
             obj.distal = poseFromMatrix(rightAction(obj.pose, obj.h));
         end
-        
         function obj = drawLink(obj, ax)
             X = [obj.pose(1), obj.distal(1)];
             Y = [obj.pose(2), obj.distal(2)];
