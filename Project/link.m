@@ -28,7 +28,7 @@ classdef link
             obj.pose = [0,0,0,0,0,0];
             obj.zero_pose = [0,0,0,0,0,0];
             obj.kp = 1;
-            obj.ki = 1;
+            obj.ki = 0;
             obj.alpha_dot = 0;
             obj.alpha_ = 0;
             obj.alpha_desired = obj.alpha_;

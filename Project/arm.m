@@ -99,7 +99,6 @@ classdef arm
             % desired acceleration
             dtheta = obj.JacobianPsuedoInverse(ds_clamped,J);
             dtheta_desired = dtheta;
-%             ddtheta_clamped = obj.accelerationLimit(ddtheta_control, obj.acc_norm_max);
         end
         
         function obj = step(obj, dt)
@@ -108,8 +107,6 @@ classdef arm
                 obj.alpha(i) = obj.links(i).alpha_;
                 obj.alpha_dot(i) = obj.links(i).alpha_dot;
             end
-%             obj.alpha_dot = obj.alpha_dot + ddtheta * dt;
-%             obj.alpha = obj.alpha + obj.alpha_dot * dt;
             obj = obj.calc_poses();
             obj = obj.calc_vels();
         end
@@ -180,6 +177,12 @@ classdef arm
         function obj = setKp(obj, kp)
             for i = 1:obj.num_links
                 obj.links(i).kp = kp;
+            end
+        end
+        
+        function obj = setKi(obj, ki)
+            for i = 1:obj.num_links
+                obj.links(i).ki = ki;
             end
         end
         
