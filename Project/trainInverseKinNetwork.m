@@ -61,20 +61,22 @@ trainData = training_data(find(rand_idx==1),:);
 trainData_y = reshape([trainData{:,1}], [size(trainData,1), length(trainData{1,1})]);
 trainData_x = reshape([trainData{:,2}], [size(trainData,1), length(trainData{1,2})]);
 testData = training_data(find(rand_idx==0),:);
-testData_x = reshape([testData{:,1}], [size(testData,1), length(testData{1,1})]);
+testData_y = reshape([testData{:,1}], [size(testData,1), length(testData{1,1})]);
 net = feedforwardnet(20);
 % input EE and get out joint angles
 net = configure(net, trainData_x, trainData_y);
 % % % pre training
 y1 = net(trainData_x);
+error_pre = sum(abs(trainData_y-y1),2);
 
 % % % % train
-net = train(net, trainData_x, trainData_y,'useParallel','yes','showResources','yes');
+% net = train(net, trainData_x, trainData_y,'useParallel','yes','showResources','yes');
+net = train(net, trainData_x, trainData_y);
+invKinNet = net;
+save invKinNet
 y2 = net(trainData_x);
-
-
-error = trainData_y - y2;
-plot(error, 'rx')
+error_post = sum(abs(trainData_y-y2),2);
+plot(error_pose, 'bo')
 % % % % Compare
 % plot(
 % layers = [fullyConnectedLayer(10);
@@ -85,8 +87,8 @@ plot(error, 'rx')
 %           softmaxLayer();
 %           ];
 % regnet = trainNetwork(trainData,layers,options);
-options = trainingOptions('sgdm','MaxEpochs',20,'InitialLearnRate',0.0001);
-YTest = classify(regnet,testDigitData);
+% options = trainingOptions('sgdm','MaxEpochs',20,'InitialLearnRate',0.0001);
+% YTest = classify(regnet,testDigitData);
 % A = A.set_joints(start_alphas);
 % EE_pose = A.links(end).distal.';
 
