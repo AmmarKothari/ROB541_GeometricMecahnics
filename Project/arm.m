@@ -213,11 +213,20 @@ classdef arm
             dist = f_arm.links(end).distal - goal;
         end
         
-        function goal_alphas = invKin(obj, goal)
-            dist_func = @(al) sum(0.5 * obj.dist_to_goal(goal, al).^2);
+        function dist = dist_to_pose(obj, pose, min_alphas)
+            dist = pose - min_alphas;
+        end
+        
+        function goal_alphas = invKin(obj, goal, min_alphas)
+            cart_func = @(al) sum(0.5 * obj.dist_to_goal(goal, al).^2);
+            alpha_func = @(al) sum(0.5 * obj.dist_to_pose(al, min_alphas).^2); 
+            w = [1, 0.1];
+            dist_func = @(al) w(1)*cart_func(al) + w(2)*alpha_func(al);
             x0 = obj.get_alphas();
             % add joint constraints!
-            goal_alphas = fmincon(dist_func, x0);
+            ub = pi*ones(size(min_alphas));
+            lb = -pi*ones(size(min_alphas));
+            goal_alphas = fmincon(dist_func, x0, [], [], [], [], lb, ub);
         end
     end
     
