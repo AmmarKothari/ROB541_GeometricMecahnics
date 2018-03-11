@@ -55,6 +55,9 @@ A_goal = A_goal.calc_poses();
 A_goal.drawArm(ax);
 path_points = 50;
 travel_path = linearAlphaPath(start_alphas, goal_alphas, path_points);
+plotAllPoses(A, travel_path, ax);
+xlim([-3,3])
+A = A.setKi(0.01); A = A.setKp(0.5);
 i = 1;
 i_old = 0;
 i_frame = 0;
@@ -64,10 +67,10 @@ EE_pose = A.links(end).distal.';
 EE_path = [];
 
 while i <= length(travel_path)
-    s = travel_path(i, :);
+    s = travel_path(i, :) * 0.1*(i-1);
     if rem(round(t, 5), dt_highlevel) < 1e-5
         % set desired joint locations
-        A.set_alpha_desired(s);
+        A = A.set_alpha_desired(s);
         
     end
     
@@ -95,7 +98,8 @@ while i <= length(travel_path)
         i_frame = i_frame + 1;
         if RECORD; addToGif(i_frame,getframe(f), filename); end
         d = A.alpha - s;
-        fprintf('Point %d Distance: %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f = %0.2f\n', i, d(1), d(2), d(3), d(4), d(5), d(6), norm(EE_pose(1:3) - s(1:3)))
+        A_des = A.set_joints(s);
+        fprintf('Point %d Distance: %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f = %0.6f\n', i, d(1), d(2), d(3), d(4), d(5), d(6), norm(EE_pose(1:3) - A_des.links(end).distal(1:3)))
     
     end
     

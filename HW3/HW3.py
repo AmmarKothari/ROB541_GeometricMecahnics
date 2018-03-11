@@ -209,7 +209,6 @@ class arm(object):
 		# calcualtes the jacobian using the spatial approach
 		J_spatial = []
 		for j in range(self.joint_count):
-			# J_spatial.append(np.dot(GeoOps.adjoint(self.poses[j+1]), self.a_local[j]))
 			J_spatial.append(np.dot(GeoOps.adjoint(self.poses[j]), self.a_local[j]))
 		J_spatial = np.transpose(np.array(J_spatial))
 		return J_spatial

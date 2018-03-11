@@ -183,6 +183,12 @@ classdef arm
             end
         end
         
+        function obj = setKi(obj, ki)
+            for i = 1:obj.num_links
+                obj.links(i).ki = ki;
+            end
+        end
+        
         function obj = clearErrors(obj)
             for i = 1:obj.num_links
                 obj.links(i) = obj.links(i).clearError();
