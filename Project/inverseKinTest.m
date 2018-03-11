@@ -57,23 +57,12 @@ goal_alphas =  A.invKin(goal_pt);
 A_goal = A.set_joints(goal_alphas);
 A_goal = A_goal.calc_poses();
 A_goal.drawArm(ax);
-travel_path_alpha = linearAlphaPath(start_alphas, goal_alphas, path_points);
-travel_path = linearCartPath_alpha(A, start_pt, goal_pt, path_points);
-end_pt_path = zeros(length(travel_path), 6);
-end_pt_path_alpha = zeros(length(travel_path_alpha), 6);
-A_test = A_goal;
-for i = 1:size(travel_path,1)
-    A_test = A_test.calc_poses(travel_path(i,:));
-    end_pt_path(i,:) = A_test.links(end).distal;
-end
-for i = 1:size(travel_path_alpha,1)
-    A_test = A_test.calc_poses(travel_path_alpha(i,:));
-    end_pt_path_alpha(i,:) = A_test.links(end).distal;
-end
-hold on
-plot3(ax, end_pt_path(:, 1), end_pt_path(:, 2), end_pt_path(:, 3), 'ro', 'MarkerSize', 12);
-plot3(ax, end_pt_path_alpha(:, 1), end_pt_path_alpha(:, 2), end_pt_path_alpha(:, 3), 'bo', 'MarkerSize', 12);
-hold off
+
+path_points = 50;
+travel_path = linearAlphaPath(start_alphas, goal_alphas, path_points);
+plotAllPoses(A, travel_path, ax);
+xlim([-3,3])
+A = A.setKi(0.01); A = A.setKp(0.5);
 i = 1;
 i_old = 0;
 i_frame = 0;
@@ -84,7 +73,7 @@ EE_path = [];
 A = A.setKp(0.1);
 A = A.setKi(0);
 while i <= length(travel_path)
-    s = travel_path(i, :);
+    s = travel_path(i, :) * 0.1*(i-1);
     if rem(round(t, 5), dt_highlevel) < 1e-5
         % set desired joint locations
         A = A.set_alpha_desired(s);
@@ -115,8 +104,9 @@ while i <= length(travel_path)
         drawnow
         i_frame = i_frame + 1;
         if RECORD; addToGif(i_frame,getframe(f), filename); end
-        d = A.alpha - s';
-        fprintf('Point %d Distance: %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f = %0.2f\n', i, d(1), d(2), d(3), d(4), d(5), d(6), norm(d))
+        d = A.alpha - s;
+        A_des = A.set_joints(s);
+        fprintf('Point %d Distance: %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f = %0.6f\n', i, d(1), d(2), d(3), d(4), d(5), d(6), norm(EE_pose(1:3) - A_des.links(end).distal(1:3)))
     
     end
     
