@@ -90,6 +90,7 @@ while i <= length(travel_path)
         plot3(ax, travel_path(1:i,1), travel_path(1:i,2), travel_path(1:i,3), 'b');
         plot3(EE_path(:,1), EE_path(:,2), EE_path(:,3), 'c')
         hold off;
+        xlim([-2, 4]); ylim([-0.5, 4]); zlim([0,6]);
         drawnow
         i_frame = i_frame + 1;
         if RECORD; addToGif(i_frame,getframe(f), filename); end
